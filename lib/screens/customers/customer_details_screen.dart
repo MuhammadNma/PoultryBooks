@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:poultry_profit_calculator/models/customer_transaction.dart';
 import '../../controllers/transaction_controller.dart';
 import '../../models/customer.dart';
+import '../../models/customer_transaction.dart';
 import '../../widgets/transaction_tile.dart';
 import 'add_transaction_screen.dart';
+import 'add_customer_screen.dart';
 
 class CustomerDetailsScreen extends StatefulWidget {
   final Customer customer;
@@ -20,54 +21,79 @@ class CustomerDetailsScreen extends StatefulWidget {
 }
 
 class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
+  late Customer _customer;
+
+  @override
+  void initState() {
+    super.initState();
+    _customer = widget.customer;
+  }
+
+  void _editCustomer() async {
+    final updated = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AddCustomerScreen(customer: _customer),
+      ),
+    );
+
+    if (updated is Customer) {
+      widget.txController.updateCustomer(updated);
+      setState(() {
+        _customer = updated;
+      });
+    }
+  }
+
   void _addTransaction() async {
     final res = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => AddTransactionScreen(customerId: widget.customer.id),
+        builder: (_) => AddTransactionScreen(customerId: _customer.id),
       ),
     );
 
     if (res is CustomerTransaction) {
       setState(() {
-        // Only pass the transaction; controller updates customer totals internally
         widget.txController.addTransaction(res);
+        _customer =
+            widget.txController.customersBox.get(_customer.id) ?? _customer;
       });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final txs = widget.txController.forCustomer(widget.customer.id);
+    final txs = widget.txController.forCustomer(_customer.id);
 
     return Scaffold(
-      appBar: AppBar(title: Text(widget.customer.name)),
+      appBar: AppBar(
+        title: Text(_customer.name),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.edit),
+            onPressed: _editCustomer,
+          ),
+        ],
+      ),
       body: Padding(
         padding: const EdgeInsets.all(12.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Card(
-              elevation: 2,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8)),
               child: Padding(
                 padding: const EdgeInsets.all(12.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Phone: ${widget.customer.phone}'),
-                    const SizedBox(height: 6),
-                    Text('Address: ${widget.customer.address ?? '-'}'),
-                    const SizedBox(height: 6),
+                    Text('Phone: ${_customer.phone}'),
+                    Text('Address: ${_customer.address ?? '-'}'),
                     Text(
-                        'Total Spent: ₦${widget.customer.totalSpent.toStringAsFixed(2)}'),
-                    const SizedBox(height: 6),
+                        'Total Spent: ₦${_customer.totalSpent.toStringAsFixed(2)}'),
                     Text(
-                        'Total Paid: ₦${widget.customer.totalPaid.toStringAsFixed(2)}'),
-                    const SizedBox(height: 6),
-                    Text(
-                        'Balance: ₦${widget.customer.balance.toStringAsFixed(2)}'),
+                        'Total Paid: ₦${_customer.totalPaid.toStringAsFixed(2)}'),
+                    Text('Balance: ₦${_customer.balance.toStringAsFixed(2)}'),
                   ],
                 ),
               ),
@@ -90,8 +116,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                   ? const Center(child: Text('No transactions yet'))
                   : ListView.builder(
                       itemCount: txs.length,
-                      itemBuilder: (context, index) =>
-                          TransactionTile(tx: txs[index]),
+                      itemBuilder: (_, i) => TransactionTile(tx: txs[i]),
                     ),
             ),
           ],

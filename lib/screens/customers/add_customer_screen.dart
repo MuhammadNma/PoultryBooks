@@ -3,7 +3,9 @@ import '../../models/customer.dart';
 import 'package:uuid/uuid.dart';
 
 class AddCustomerScreen extends StatefulWidget {
-  const AddCustomerScreen({Key? key}) : super(key: key);
+  final Customer? customer; // ✅ NEW
+
+  const AddCustomerScreen({Key? key, this.customer}) : super(key: key);
 
   @override
   State<AddCustomerScreen> createState() => _AddCustomerScreenState();
@@ -15,15 +17,29 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
   final phoneController = TextEditingController();
   final addressController = TextEditingController();
 
+  @override
+  void initState() {
+    super.initState();
+
+    // ✅ Prefill when editing
+    if (widget.customer != null) {
+      nameController.text = widget.customer!.name;
+      phoneController.text = widget.customer!.phone;
+      addressController.text = widget.customer!.address ?? '';
+    }
+  }
+
   void _save() {
     if (_formKey.currentState!.validate()) {
       final customer = Customer(
-        id: const Uuid().v4(),
+        id: widget.customer?.id ?? const Uuid().v4(), // ✅ preserve ID
         name: nameController.text.trim(),
         phone: phoneController.text.trim(),
         address: addressController.text.trim().isEmpty
             ? null
             : addressController.text.trim(),
+        totalPaid: widget.customer?.totalPaid ?? 0,
+        totalSpent: widget.customer?.totalSpent ?? 0,
       );
 
       Navigator.pop(context, customer);
@@ -40,8 +56,10 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isEdit = widget.customer != null;
+
     return Scaffold(
-      appBar: AppBar(title: const Text("Add Customer")),
+      appBar: AppBar(title: Text(isEdit ? "Edit Customer" : "Add Customer")),
       body: Padding(
         padding: const EdgeInsets.all(12.0),
         child: Form(
@@ -78,7 +96,7 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
               const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: _save,
-                child: const Text("Save Customer"),
+                child: Text(isEdit ? "Update Customer" : "Save Customer"),
               )
             ],
           ),

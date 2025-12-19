@@ -21,6 +21,10 @@ class TransactionController {
     customersBox.put(customer.id, customer);
   }
 
+  void updateCustomer(Customer updated) {
+    customersBox.put(updated.id, updated);
+  }
+
   void addTransaction(CustomerTransaction tx) {
     txBox.put(tx.id, tx);
 
