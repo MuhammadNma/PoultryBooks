@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../controllers/transaction_controller.dart';
 import '../../models/customer.dart';
 import '../../models/customer_transaction.dart';
+import '../../utils/currency.dart';
 import '../../widgets/transaction_tile.dart';
 import 'add_transaction_screen.dart';
 import 'add_customer_screen.dart';
@@ -89,11 +90,9 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                   children: [
                     Text('Phone: ${_customer.phone}'),
                     Text('Address: ${_customer.address ?? '-'}'),
-                    Text(
-                        'Total Spent: ₦${_customer.totalSpent.toStringAsFixed(2)}'),
-                    Text(
-                        'Total Paid: ₦${_customer.totalPaid.toStringAsFixed(2)}'),
-                    Text('Balance: ₦${_customer.balance.toStringAsFixed(2)}'),
+                    Text('Total Spent: ${formatMoney(_customer.totalSpent)}'),
+                    Text('Total Paid: ${formatMoney(_customer.totalPaid)}'),
+                    Text('Balance: ${formatMoney(_customer.balance)}'),
                   ],
                 ),
               ),

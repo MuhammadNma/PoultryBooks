@@ -35,4 +35,22 @@ class TransactionController {
       customer.save();
     }
   }
+
+  void recordFullPayment(Customer customer) {
+    final owing = customer.balance.abs();
+    if (owing <= 0) return;
+
+    final tx = CustomerTransaction(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      customerId: customer.id,
+      crates: 0,
+      pieces: 0,
+      pricePerCrate: 0,
+      totalAmount: 0,
+      amountPaid: owing,
+      date: DateTime.now(),
+    );
+
+    addTransaction(tx);
+  }
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../controllers/transaction_controller.dart';
+import '../../utils/currency.dart';
 import '../../widgets/customer_summary_tiles.dart';
 import 'customer_details_screen.dart';
 import 'add_customer_screen.dart';
@@ -56,7 +57,10 @@ class _CustomersScreenState extends State<CustomersScreen> {
                       return ListTile(
                         title: Text(c.name),
                         subtitle: Text(
-                            "Balance: ₦${c.balance.toStringAsFixed(2)} | Paid: ₦${c.totalPaid.toStringAsFixed(2)} | Spent: ₦${c.totalSpent.toStringAsFixed(2)}"),
+                          "Balance: ${formatMoney(c.balance)} | "
+                          "Paid: ${formatMoney(c.totalPaid)} | "
+                          "Spent: ${formatMoney(c.totalSpent)}",
+                        ),
                         trailing: const Icon(Icons.chevron_right),
                         onTap: () {
                           Navigator.push(

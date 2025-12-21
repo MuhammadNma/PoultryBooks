@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:poultry_profit_calculator/models/customer_transaction.dart';
+import '../../utils/currency.dart';
 
 class TransactionTile extends StatelessWidget {
   final CustomerTransaction tx;
@@ -13,7 +14,8 @@ class TransactionTile extends StatelessWidget {
       child: ListTile(
         title: Text('${tx.crates} crates + ${tx.pieces} pieces'),
         subtitle: Text(
-            'Total: ₦${tx.totalAmount.toStringAsFixed(2)} | Paid: ₦${tx.amountPaid.toStringAsFixed(2)}'),
+          'Total: ${formatMoney(tx.totalAmount)} | Paid: ${formatMoney(tx.amountPaid)}',
+        ),
         trailing: Text(
           '${tx.date.toLocal().toString().split(' ')[0]}',
           style: const TextStyle(fontSize: 12, color: Colors.grey),
