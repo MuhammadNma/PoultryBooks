@@ -27,10 +27,15 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
   @override
   void initState() {
     super.initState();
-    _customer = widget.customer;
+    _refreshCustomer();
   }
 
-  void _editCustomer() async {
+  void _refreshCustomer() {
+    _customer = widget.txController.customersBox.get(widget.customer.id) ??
+        widget.customer;
+  }
+
+  Future<void> _editCustomer() async {
     final updated = await Navigator.push(
       context,
       MaterialPageRoute(
@@ -40,13 +45,11 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
 
     if (updated is Customer) {
       widget.txController.updateCustomer(updated);
-      setState(() {
-        _customer = updated;
-      });
+      setState(() => _refreshCustomer());
     }
   }
 
-  void _addTransaction() async {
+  Future<void> _addTransaction() async {
     final res = await Navigator.push(
       context,
       MaterialPageRoute(
@@ -55,17 +58,20 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
     );
 
     if (res is CustomerTransaction) {
-      setState(() {
-        widget.txController.addTransaction(res);
-        _customer =
-            widget.txController.customersBox.get(_customer.id) ?? _customer;
-      });
+      widget.txController.addTransaction(res);
+      setState(() => _refreshCustomer());
     }
+  }
+
+  void _deleteTransaction(CustomerTransaction tx) {
+    widget.txController.deleteTransaction(tx);
+    setState(() => _refreshCustomer());
   }
 
   @override
   Widget build(BuildContext context) {
-    final txs = widget.txController.forCustomer(_customer.id);
+    final txs = widget.txController.forCustomer(_customer.id)
+      ..sort((a, b) => b.date.compareTo(a.date));
 
     return Scaffold(
       appBar: AppBar(
@@ -78,44 +84,66 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
         ],
       ),
       body: Padding(
-        padding: const EdgeInsets.all(12.0),
+        padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            /// CUSTOMER SUMMARY
             Card(
               child: Padding(
-                padding: const EdgeInsets.all(12.0),
+                padding: const EdgeInsets.all(12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text('Phone: ${_customer.phone}'),
                     Text('Address: ${_customer.address ?? '-'}'),
-                    Text('Total Spent: ${formatMoney(_customer.totalSpent)}'),
+                    const Divider(),
+                    Text('Total Bought: ${formatMoney(_customer.totalSpent)}'),
                     Text('Total Paid: ${formatMoney(_customer.totalPaid)}'),
-                    Text('Balance: ${formatMoney(_customer.balance)}'),
+                    Text(
+                      'Owing: ${formatMoney(_customer.owing)}',
+                      style: TextStyle(
+                        color: _customer.owing > 0 ? Colors.red : Colors.green,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ],
                 ),
               ),
             ),
+
             const SizedBox(height: 12),
+
+            /// TRANSACTIONS HEADER
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Transactions',
-                    style: Theme.of(context).textTheme.titleMedium),
+                Text(
+                  'Transactions',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
                 ElevatedButton(
                   onPressed: _addTransaction,
                   child: const Text('Add Transaction'),
                 ),
               ],
             ),
+
             const SizedBox(height: 8),
+
+            /// TRANSACTIONS LIST
             Expanded(
               child: txs.isEmpty
                   ? const Center(child: Text('No transactions yet'))
                   : ListView.builder(
                       itemCount: txs.length,
-                      itemBuilder: (_, i) => TransactionTile(tx: txs[i]),
+                      itemBuilder: (_, i) {
+                        final tx = txs[i];
+                        return TransactionTile(
+                          tx: tx,
+                          onDelete: () => _deleteTransaction(tx),
+                        );
+                      },
                     ),
             ),
           ],

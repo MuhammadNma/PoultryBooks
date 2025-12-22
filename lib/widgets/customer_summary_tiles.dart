@@ -16,13 +16,19 @@ class CustomerSummaryTiles extends StatelessWidget {
     final customers = txController.customers;
 
     final totalCustomers = customers.length;
-    final totalBought =
-        customers.fold<double>(0.0, (sum, c) => sum + c.totalSpent);
-    final totalPaid =
-        customers.fold<double>(0.0, (sum, c) => sum + c.totalPaid);
+    final totalBought = customers.fold<double>(
+      0.0,
+      (sum, c) => sum + c.totalSpent,
+    );
+
+    final totalPaid = customers.fold<double>(
+      0.0,
+      (sum, c) => sum + c.totalPaid,
+    );
+
     final totalOwing = customers.fold<double>(
       0.0,
-      (sum, c) => sum + (c.balance < 0 ? c.balance.abs() : 0),
+      (sum, c) => sum + c.owing,
     );
 
     return Column(

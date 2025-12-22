@@ -31,5 +31,10 @@ class Customer extends HiveObject {
     this.totalPaid = 0.0,
   });
 
+  double get owing {
+    final diff = totalSpent - totalPaid;
+    return diff > 0 ? diff : 0;
+  }
+
   double get balance => totalPaid - totalSpent;
 }

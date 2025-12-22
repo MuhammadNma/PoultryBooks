@@ -17,7 +17,7 @@ class _OwingCustomersScreenState extends State<OwingCustomersScreen> {
   @override
   Widget build(BuildContext context) {
     final owingCustomers =
-        widget.txController.customers.where((c) => c.balance < 0).toList();
+        widget.txController.customers.where((c) => c.owing > 0).toList();
 
     return Scaffold(
       appBar: AppBar(title: const Text('Customers Owing')),
@@ -30,7 +30,7 @@ class _OwingCustomersScreenState extends State<OwingCustomersScreen> {
                 return Card(
                   child: ListTile(
                     title: Text(c.name),
-                    subtitle: Text('Owes ${formatMoney(c.balance.abs())}'),
+                    subtitle: Text('Owes ${formatMoney(c.owing)}'),
                     leading: Checkbox(
                       value: false,
                       onChanged: (_) => _confirmPayment(context, c),
@@ -61,7 +61,7 @@ class _OwingCustomersScreenState extends State<OwingCustomersScreen> {
         title: const Text('Confirm Payment'),
         content: Text(
           'Mark ${customer.name} as fully paid?\n'
-          'Amount: ${formatMoney(customer.balance.abs())}',
+          'Amount: ${formatMoney(customer.owing)}',
         ),
         actions: [
           TextButton(

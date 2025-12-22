@@ -53,4 +53,15 @@ class TransactionController {
 
     addTransaction(tx);
   }
+
+  void deleteTransaction(CustomerTransaction tx) {
+    final customer = customersBox.get(tx.customerId);
+    if (customer != null) {
+      customer.totalSpent -= tx.totalAmount;
+      customer.totalPaid -= tx.amountPaid;
+      customer.save(); // save updated totals to Hive
+    }
+
+    txBox.delete(tx.id);
+  }
 }
