@@ -12,8 +12,16 @@ import '../widgets/saved_profit_card_expandable.dart';
 
 import '../screens/calendar_profit_view.dart';
 
+// class ProfitCalculatorScreen extends StatefulWidget {
+//   const ProfitCalculatorScreen({Key? key}) : super(key: key);
+
+//   @override
+//   State<ProfitCalculatorScreen> createState() => _ProfitCalculatorScreenState();
+// }
 class ProfitCalculatorScreen extends StatefulWidget {
-  const ProfitCalculatorScreen({Key? key}) : super(key: key);
+  final DateTime? selectedDate;
+
+  const ProfitCalculatorScreen({Key? key, this.selectedDate}) : super(key: key);
 
   @override
   State<ProfitCalculatorScreen> createState() => _ProfitCalculatorScreenState();
@@ -119,24 +127,47 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen> {
     });
   }
 
+  // Future<void> _save() async {
+  //   final record = ProfitRecord(
+  //     date: DateTime.now(),
+  //     profit: profit,
+  //     eggIncome: eggIncome,
+  //     feedCost: feedCost,
+  //     fixedCostPerDay: fixedCostPerDay,
+  //   );
+
+  //   if (profitController.isSavedForToday(DateTime.now())) {
+  //     ScaffoldMessenger.of(context).showSnackBar(
+  //       const SnackBar(content: Text("Today's profit has already been saved.")),
+  //     );
+  //     return;
+  //   }
+
+  //   await profitController.addRecord(record);
+  //   setState(() {});
+  // }
+
   Future<void> _save() async {
+    final date = widget.selectedDate ?? DateTime.now();
+
+    if (profitController.isSavedForToday(date)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('A record already exists for this date')),
+      );
+      return;
+    }
+
     final record = ProfitRecord(
-      date: DateTime.now(),
+      date: date,
       profit: profit,
       eggIncome: eggIncome,
       feedCost: feedCost,
       fixedCostPerDay: fixedCostPerDay,
     );
 
-    if (profitController.isSavedForToday(DateTime.now())) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Today's profit has already been saved.")),
-      );
-      return;
-    }
-
     await profitController.addRecord(record);
-    setState(() {});
+
+    Navigator.pop(context); // go back to calendar
   }
 
   @override
@@ -153,7 +184,9 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen> {
       );
     }
 
-    final records = profitController.records;
+    final records = profitController.records
+      ..sort((a, b) => b.date.compareTo(a.date)); // newest first
+
     final previewRecords = records.take(5).toList();
 
     return Scaffold(
@@ -172,11 +205,11 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen> {
                     NumberField(
                         controller: inputs.crates, label: 'Crates Produced'),
                     NumberField(
+                        controller: inputs.eggPieces, label: 'Egg Pieces'),
+                    NumberField(
                         controller: inputs.cratePrice,
                         label: 'Price per Crate',
                         prefixText: '₦'),
-                    NumberField(
-                        controller: inputs.eggPieces, label: 'Egg Pieces'),
                     NumberField(
                         controller: inputs.feedBagCost,
                         label: 'Feed Bag Cost',
