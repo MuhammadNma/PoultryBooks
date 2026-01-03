@@ -28,7 +28,7 @@ class InputControllers {
   final transport = TextEditingController();
 
   void dispose() {
-    [
+    for (var c in [
       crates,
       cratePrice,
       eggPieces,
@@ -50,6 +50,8 @@ class InputControllers {
       labor,
       packaging,
       transport
-    ].forEach((c) => c.dispose());
+    ]) {
+      c.dispose();
+    }
   }
 }

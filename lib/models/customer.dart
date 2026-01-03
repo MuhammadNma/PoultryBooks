@@ -37,4 +37,23 @@ class Customer extends HiveObject {
   }
 
   double get balance => totalPaid - totalSpent;
+
+  /// 🔁 JSON
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'phone': phone,
+        'address': address,
+        'totalSpent': totalSpent,
+        'totalPaid': totalPaid,
+      };
+
+  factory Customer.fromJson(Map<String, dynamic> json) => Customer(
+        id: json['id'],
+        name: json['name'],
+        phone: json['phone'],
+        address: json['address'],
+        totalSpent: (json['totalSpent'] ?? 0).toDouble(),
+        totalPaid: (json['totalPaid'] ?? 0).toDouble(),
+      );
 }

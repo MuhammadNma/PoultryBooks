@@ -27,7 +27,7 @@ class HistoryList extends StatelessWidget {
           return ListTile(
             leading: CircleAvatar(child: Text((index + 1).toString())),
             title: Text(money(r.profit)),
-            subtitle: Text('${r.date.toLocal().toString().split('.').first}'),
+            subtitle: Text(r.date.toLocal().toString().split('.').first),
             trailing: IconButton(
               icon: const Icon(Icons.info_outline),
               onPressed: () {

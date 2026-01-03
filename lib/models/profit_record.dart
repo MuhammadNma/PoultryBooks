@@ -26,4 +26,22 @@ class ProfitRecord extends HiveObject {
     required this.feedCost,
     required this.fixedCostPerDay,
   });
+
+ /// 🔁 JSON
+  Map<String, dynamic> toJson() => {
+        'date': date.toIso8601String(),
+        'profit': profit,
+        'eggIncome': eggIncome,
+        'feedCost': feedCost,
+        'fixedCostPerDay': fixedCostPerDay,
+      };
+
+  factory ProfitRecord.fromJson(Map<String, dynamic> json) => ProfitRecord(
+        date: DateTime.parse(json['date']),
+        profit: (json['profit'] ?? 0).toDouble(),
+        eggIncome: (json['eggIncome'] ?? 0).toDouble(),
+        feedCost: (json['feedCost'] ?? 0).toDouble(),
+        fixedCostPerDay: (json['fixedCostPerDay'] ?? 0).toDouble(),
+      );
+
 }
