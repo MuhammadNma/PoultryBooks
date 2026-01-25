@@ -2,10 +2,16 @@ import 'package:hive/hive.dart';
 import '../models/profit_record.dart';
 
 class ProfitController {
+  static const _boxName = 'profit_records';
+
   late Box<ProfitRecord> _box;
+  bool _initialized = false;
 
   Future<void> init() async {
-    _box = await Hive.openBox<ProfitRecord>('profit_records');
+    if (_initialized) return;
+
+    _box = await Hive.openBox<ProfitRecord>(_boxName);
+    _initialized = true;
   }
 
   List<ProfitRecord> get records => _box.values.toList().reversed.toList();
@@ -20,13 +26,14 @@ class ProfitController {
   }
 
   bool isSavedForToday(DateTime date) {
-    return _box.values.any((r) =>
-        r.date.year == date.year &&
-        r.date.month == date.month &&
-        r.date.day == date.day);
+    return _box.values.any(
+      (r) =>
+          r.date.year == date.year &&
+          r.date.month == date.month &&
+          r.date.day == date.day,
+    );
   }
 
-  /// existing
   ProfitRecord? getRecordByDate(DateTime date) {
     try {
       return _box.values.firstWhere(
@@ -40,7 +47,6 @@ class ProfitController {
     }
   }
 
-  /// existing
   Future<void> deleteByDate(DateTime date) async {
     final key = _box.keys.firstWhere(
       (k) {
@@ -55,7 +61,6 @@ class ProfitController {
     await _box.delete(key);
   }
 
-  /// ✅ ADD THIS — nothing else changes
   Future<void> deleteRecord(ProfitRecord record) async {
     await deleteByDate(record.date);
   }

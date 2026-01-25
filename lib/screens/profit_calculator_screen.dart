@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 
 import '../controllers/input_controllers.dart';
 import '../controllers/profit_controller.dart';
+import '../controllers/settings_controller.dart';
 import '../models/profit_record.dart';
 import '../utils/calculator.dart';
 
@@ -12,16 +12,17 @@ import '../widgets/saved_profit_card_expandable.dart';
 
 import '../screens/calendar_profit_view.dart';
 
-// class ProfitCalculatorScreen extends StatefulWidget {
-//   const ProfitCalculatorScreen({Key? key}) : super(key: key);
-
-//   @override
-//   State<ProfitCalculatorScreen> createState() => _ProfitCalculatorScreenState();
-// }
 class ProfitCalculatorScreen extends StatefulWidget {
   final DateTime? selectedDate;
+  final ProfitController profitController;
+  final SettingsController settingsController;
 
-  const ProfitCalculatorScreen({Key? key, this.selectedDate}) : super(key: key);
+  const ProfitCalculatorScreen({
+    super.key,
+    this.selectedDate,
+    required this.profitController,
+    required this.settingsController,
+  });
 
   @override
   State<ProfitCalculatorScreen> createState() => _ProfitCalculatorScreenState();
@@ -30,11 +31,7 @@ class ProfitCalculatorScreen extends StatefulWidget {
 class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen> {
   final _formKey = GlobalKey<FormState>();
   final inputs = InputControllers();
-  final profitController = ProfitController();
-
-  bool showAdvanced = false;
   bool showOtherCosts = false;
-  bool _isInitialized = false;
   bool _hasCalculated = false;
 
   double profit = 0;
@@ -45,13 +42,15 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen> {
   @override
   void initState() {
     super.initState();
-    _initHive();
+    _loadDefaults();
   }
 
-  Future<void> _initHive() async {
-    await Hive.initFlutter();
-    await profitController.init();
-    setState(() => _isInitialized = true);
+  /// Load prices from Settings
+  void _loadDefaults() {
+    final s = widget.settingsController.settings;
+    inputs.cratePrice.text = s.pricePerCrate.toString();
+    inputs.feedBagCost.text = s.feedBagCost.toString();
+    inputs.feedBagSize.text = s.bagSizeKg.toString();
   }
 
   double _parse(String text) =>
@@ -127,30 +126,10 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen> {
     });
   }
 
-  // Future<void> _save() async {
-  //   final record = ProfitRecord(
-  //     date: DateTime.now(),
-  //     profit: profit,
-  //     eggIncome: eggIncome,
-  //     feedCost: feedCost,
-  //     fixedCostPerDay: fixedCostPerDay,
-  //   );
-
-  //   if (profitController.isSavedForToday(DateTime.now())) {
-  //     ScaffoldMessenger.of(context).showSnackBar(
-  //       const SnackBar(content: Text("Today's profit has already been saved.")),
-  //     );
-  //     return;
-  //   }
-
-  //   await profitController.addRecord(record);
-  //   setState(() {});
-  // }
-
   Future<void> _save() async {
     final date = widget.selectedDate ?? DateTime.now();
 
-    if (profitController.isSavedForToday(date)) {
+    if (widget.profitController.isSavedForToday(date)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('A record already exists for this date')),
       );
@@ -165,9 +144,32 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen> {
       fixedCostPerDay: fixedCostPerDay,
     );
 
-    await profitController.addRecord(record);
+    await widget.profitController.addRecord(record);
 
-    Navigator.pop(context); // go back to calendar
+    if (widget.selectedDate != null) {
+      // Opened from calendar → safe to pop
+      Navigator.pop(context);
+    } else {
+      // Opened as bottom tab → just reset calculator
+      inputs.clear();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Profit saved successfully')),
+      );
+
+      setState(() {
+        _hasCalculated = false;
+        profit = 0;
+        eggIncome = 0;
+        feedCost = 0;
+        fixedCostPerDay = 0;
+      });
+    }
+  }
+
+  Future<void> _refreshPrices() async {
+    await widget.settingsController.init(); // reload from Hive
+    _loadDefaults(); // update text fields
+    setState(() {});
   }
 
   @override
@@ -178,26 +180,19 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (!_isInitialized) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
-    }
-
-    final records = profitController.records
-      ..sort((a, b) => b.date.compareTo(a.date)); // newest first
+    final records = widget.profitController.records
+      ..sort((a, b) => b.date.compareTo(a.date));
 
     final previewRecords = records.take(5).toList();
 
     return Scaffold(
       appBar: AppBar(title: const Text('Profit Calculator')),
-      body: SafeArea(
+      body: RefreshIndicator(
+        onRefresh: _refreshPrices,
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(12),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              /// INPUT FORM
               Form(
                 key: _formKey,
                 child: Column(
@@ -207,17 +202,23 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen> {
                     NumberField(
                         controller: inputs.eggPieces, label: 'Egg Pieces'),
                     NumberField(
-                        controller: inputs.cratePrice,
-                        label: 'Price per Crate',
-                        prefixText: '₦'),
+                      controller: inputs.cratePrice,
+                      label: 'Price per Crate',
+                      prefixText: '₦',
+                    ),
                     NumberField(
-                        controller: inputs.feedBagCost,
-                        label: 'Feed Bag Cost',
-                        prefixText: '₦'),
+                      controller: inputs.feedBagCost,
+                      label: 'Feed Bag Cost',
+                      prefixText: '₦',
+                    ),
                     NumberField(
-                        controller: inputs.feedBagSize, label: 'Bag Size (kg)'),
+                      controller: inputs.feedBagSize,
+                      label: 'Bag Size (kg)',
+                    ),
                     NumberField(
-                        controller: inputs.feedEaten, label: 'Feed Eaten (kg)'),
+                      controller: inputs.feedEaten,
+                      label: 'Feed Eaten (kg)',
+                    ),
                     Row(
                       children: [
                         Checkbox(
@@ -262,62 +263,45 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
                         ElevatedButton(
-                          onPressed: _calculate,
-                          child: const Text('Calculate'),
-                        ),
+                            onPressed: _calculate,
+                            child: const Text('Calculate')),
                         ElevatedButton(
-                          onPressed: _save,
-                          child: const Text('Save'),
-                        ),
+                            onPressed: _save, child: const Text('Save')),
                       ],
                     ),
                   ],
                 ),
               ),
-
-              const SizedBox(height: 16),
-
-              /// RESULT
               if (_hasCalculated)
-                Center(
-                  child: ResultCard(
-                    eggIncome: eggIncome,
-                    feedCost: feedCost,
-                    fixedCostPerDay: fixedCostPerDay,
-                    profit: profit,
-                  ),
+                ResultCard(
+                  eggIncome: eggIncome,
+                  feedCost: feedCost,
+                  fixedCostPerDay: fixedCostPerDay,
+                  profit: profit,
                 ),
-
-              const SizedBox(height: 24),
-
-              /// SAVED RECORDS (MAX 5)
+              const SizedBox(height: 20),
               ...previewRecords.map(
-                (record) => SavedProfitCardExpandable(
-                  record: record,
-                  profitController: profitController,
+                (r) => SavedProfitCardExpandable(
+                  record: r,
+                  profitController: widget.profitController,
                   onDeleted: () => setState(() {}),
                 ),
               ),
-
-              /// VIEW MORE (ALWAYS SHOWN)
-              Center(
-                child: TextButton(
-                  onPressed: () async {
-                    await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => CalendarProfitView(
-                          controller: profitController,
-                        ),
+              TextButton(
+                onPressed: () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => CalendarProfitView(
+                        controller: widget.profitController,
+                        settingsController: widget.settingsController,
                       ),
-                    );
-                    setState(() {}); // refresh after returning
-                  },
-                  child: const Text(
-                    'View More',
-                    style: TextStyle(fontSize: 16),
-                  ),
-                ),
+                    ),
+                  );
+                  _loadDefaults(); // refresh prices after returning
+                  setState(() {});
+                },
+                child: const Text('View More'),
               ),
             ],
           ),

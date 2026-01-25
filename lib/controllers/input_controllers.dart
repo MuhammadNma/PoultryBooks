@@ -27,6 +27,31 @@ class InputControllers {
   final packaging = TextEditingController();
   final transport = TextEditingController();
 
+  void clear() {
+    for (final c in [
+      crates,
+      eggPieces,
+      feedEaten,
+      medication,
+      supplements,
+      electricity,
+      water,
+      labor,
+      packaging,
+      transport,
+      numberOfBirds,
+      costPerBird,
+      layingPeriodDays,
+      housingCost,
+      housingLifespan,
+      equipmentCost,
+      equipmentLifespan,
+      mortalityCost,
+    ]) {
+      c.clear();
+    }
+  }
+
   void dispose() {
     for (var c in [
       crates,

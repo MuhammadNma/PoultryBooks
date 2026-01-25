@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:poultry_profit_calculator/controllers/settings_controller.dart';
 import 'package:table_calendar/table_calendar.dart';
 import '../controllers/profit_controller.dart';
 import '../widgets/saved_profit_card_expandable.dart';
@@ -6,8 +7,13 @@ import 'profit_calculator_screen.dart';
 
 class CalendarProfitView extends StatefulWidget {
   final ProfitController controller;
+  final SettingsController settingsController;
 
-  const CalendarProfitView({super.key, required this.controller});
+  const CalendarProfitView({
+    super.key,
+    required this.controller,
+    required this.settingsController,
+  });
 
   @override
   State<CalendarProfitView> createState() => _CalendarProfitViewState();
@@ -82,6 +88,8 @@ class _CalendarProfitViewState extends State<CalendarProfitView> {
                 MaterialPageRoute(
                   builder: (_) => ProfitCalculatorScreen(
                     selectedDate: selectedDay,
+                    profitController: widget.controller,
+                    settingsController: widget.settingsController,
                   ),
                 ),
               );
