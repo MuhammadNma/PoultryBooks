@@ -127,6 +127,7 @@ import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:firebase_core/firebase_core.dart';
 
+import 'core/app_theme.dart';
 import 'models/customer.dart';
 import 'models/customer_transaction.dart';
 import 'models/profit_record.dart';
@@ -165,7 +166,7 @@ class PoultryProfitApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Poultry Profit Calculator',
-      theme: ThemeData(primarySwatch: Colors.blue),
+      theme: AppTheme.light(),
       home: AuthGate(txController: txController),
     );
   }
