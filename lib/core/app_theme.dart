@@ -1,5 +1,4 @@
-import 'package:flutter/material.dart';
-import 'colors.dart';
+// import 'colors.dart';
 
 // class AppTheme {
 //   static final ThemeData lightTheme = ThemeData(
@@ -10,6 +9,8 @@ import 'colors.dart';
 //     appBarTheme: const AppBarTheme(centerTitle: true),
 //   );
 // }
+
+import 'package:flutter/material.dart';
 
 class AppTheme {
   static ThemeData light() {

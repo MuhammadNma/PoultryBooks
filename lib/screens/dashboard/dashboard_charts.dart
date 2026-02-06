@@ -10,39 +10,34 @@ class DashboardCharts extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final records = controller.records;
-    final days = ChartUtils.lastNDays(7);
+    final recent = ChartUtils.last7DaysRecords(controller.records);
 
-    final labels = days.map((d) => '${d.day}/${d.month}').toList();
-
-    final profitData =
-        days.map((d) => ChartUtils.profitForDay(d, records)).toList();
-
-    final productionData =
-        days.map((d) => ChartUtils.eggProductionForDay(d, records)).toList();
-
-    final salesData =
-        days.map((d) => ChartUtils.eggSalesForDay(d, records)).toList();
+    final labels = ChartUtils.weekdayLabels();
 
     return Column(
       children: [
         SimpleBarChart(
-          title: 'Daily Profit',
-          values: profitData,
+          title: 'Daily / Weekly Profit',
+          values: ChartUtils.profitByWeekday(recent),
           xLabels: labels,
           color: Colors.green,
+          showNaira: true,
+          yAxisTitle: 'Amount',
         ),
         SimpleBarChart(
-          title: 'Daily Egg Production',
-          values: productionData,
+          title: 'Daily /Weekly Egg Production',
+          values: ChartUtils.eggProductionByWeekday(recent),
           xLabels: labels,
           color: Colors.orange,
+          yAxisTitle: 'Eggs Produced',
         ),
         SimpleBarChart(
           title: 'Egg Sales',
-          values: salesData,
+          values: ChartUtils.eggSalesByWeekday(recent),
           xLabels: labels,
           color: Colors.blue,
+          showNaira: true,
+          yAxisTitle: 'Amount',
         ),
       ],
     );

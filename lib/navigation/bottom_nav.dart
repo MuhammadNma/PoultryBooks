@@ -53,6 +53,7 @@ class _BottomNavScreenState extends State<BottomNavScreen> {
           DashboardScreen(
             profitController: profitController,
             goToTab: (i) => setState(() => _index = i),
+            settingsController: settingsController,
           ),
           ProfitCalculatorScreen(
             profitController: profitController,

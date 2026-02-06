@@ -19,15 +19,19 @@ class ProfitRecord extends HiveObject {
   @HiveField(4)
   final double fixedCostPerDay;
 
+  @HiveField(5)
+  final int eggsProduced;
+
   ProfitRecord({
     required this.date,
     required this.profit,
     required this.eggIncome,
     required this.feedCost,
     required this.fixedCostPerDay,
-  });
+    int? eggsProduced,
+  }) : eggsProduced = eggsProduced ?? 0;
 
- /// 🔁 JSON
+  /// 🔁 JSON
   Map<String, dynamic> toJson() => {
         'date': date.toIso8601String(),
         'profit': profit,
@@ -42,6 +46,6 @@ class ProfitRecord extends HiveObject {
         eggIncome: (json['eggIncome'] ?? 0).toDouble(),
         feedCost: (json['feedCost'] ?? 0).toDouble(),
         fixedCostPerDay: (json['fixedCostPerDay'] ?? 0).toDouble(),
+        eggsProduced: (json['eggsProduced'] ?? 0),
       );
-
 }

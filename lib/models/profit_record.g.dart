@@ -22,13 +22,14 @@ class ProfitRecordAdapter extends TypeAdapter<ProfitRecord> {
       eggIncome: fields[2] as double,
       feedCost: fields[3] as double,
       fixedCostPerDay: fields[4] as double,
+      eggsProduced: fields[5] as int?,
     );
   }
 
   @override
   void write(BinaryWriter writer, ProfitRecord obj) {
     writer
-      ..writeByte(5)
+      ..writeByte(6)
       ..writeByte(0)
       ..write(obj.date)
       ..writeByte(1)
@@ -38,7 +39,9 @@ class ProfitRecordAdapter extends TypeAdapter<ProfitRecord> {
       ..writeByte(3)
       ..write(obj.feedCost)
       ..writeByte(4)
-      ..write(obj.fixedCostPerDay);
+      ..write(obj.fixedCostPerDay)
+      ..writeByte(5)
+      ..write(obj.eggsProduced);
   }
 
   @override

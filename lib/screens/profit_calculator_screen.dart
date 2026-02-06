@@ -38,6 +38,7 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen> {
   double eggIncome = 0;
   double feedCost = 0;
   double fixedCostPerDay = 0;
+  double eggsProduced = 0;
 
   @override
   void initState() {
@@ -127,6 +128,13 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen> {
   }
 
   Future<void> _save() async {
+    const eggsPerCrate = 30;
+
+    final eggsProduced = (inputs.crates.text.isEmpty
+            ? 0
+            : int.parse(inputs.crates.text) * eggsPerCrate) +
+        (inputs.eggPieces.text.isEmpty ? 0 : int.parse(inputs.eggPieces.text));
+
     final date = widget.selectedDate ?? DateTime.now();
 
     if (widget.profitController.isSavedForToday(date)) {
@@ -142,6 +150,7 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen> {
       eggIncome: eggIncome,
       feedCost: feedCost,
       fixedCostPerDay: fixedCostPerDay,
+      eggsProduced: eggsProduced.toInt(),
     );
 
     await widget.profitController.addRecord(record);

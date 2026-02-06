@@ -1,41 +1,139 @@
+// import '../models/profit_record.dart';
+
+// class ChartUtils {
+//   static const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+//   /// Always returns Mon → Sun
+//   static List<String> weekdayLabels() => weekdays;
+
+//   static List<double> profitByWeekday(
+//     List<ProfitRecord> records,
+//   ) {
+//     final data = List<double>.filled(7, 0);
+
+//     for (final r in records) {
+//       final index = r.date.weekday - 1; // Mon=0 ... Sun=6
+//       data[index] += r.profit;
+//     }
+
+//     return data;
+//   }
+
+//   static List<double> eggProductionByWeekday(
+//     List<ProfitRecord> records,
+//   ) {
+//     final data = List<double>.filled(7, 0);
+
+//     for (final r in records) {
+//       final index = r.date.weekday - 1;
+//       data[index] += r.eggIncome; // or egg count if you add it later
+//     }
+
+//     return data;
+//   }
+
+//   static List<double> eggSalesByWeekday(
+//     List<ProfitRecord> records,
+//   ) {
+//     final data = List<double>.filled(7, 0);
+
+//     for (final r in records) {
+//       final index = r.date.weekday - 1;
+//       data[index] += r.eggIncome;
+//     }
+
+//     return data;
+//   }
+
+//   /* Last 7 days Record */
+
+//   static List<ProfitRecord> last7DaysRecords(
+//     List<ProfitRecord> records,
+//   ) {
+//     final now = DateTime.now();
+//     final start = DateTime(now.year, now.month, now.day)
+//         .subtract(const Duration(days: 6));
+
+//     return records.where((r) {
+//       final d = DateTime(r.date.year, r.date.month, r.date.day);
+//       return !d.isBefore(start);
+//     }).toList();
+//   }
+
+//   /* Map Last 7 days Record */
+
+//   static List<double> profitByWeekdayLast7Days(
+//     List<ProfitRecord> records,
+//   ) {
+//     final data = List<double>.filled(7, 0);
+
+//     for (final r in records) {
+//       final index = r.date.weekday - 1; // Mon=0
+//       data[index] = r.profit; // overwrite, not accumulate
+//     }
+
+//     return data;
+//   }
+// }
+
 import '../models/profit_record.dart';
 
 class ChartUtils {
-  static List<DateTime> lastNDays(int days) {
+  /// ---- Date Helpers ----
+  static List<String> weekdayLabels() =>
+      const ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+  static List<ProfitRecord> last7DaysRecords(
+    List<ProfitRecord> records,
+  ) {
     final now = DateTime.now();
-    return List.generate(
-      days,
-      (i) => DateTime(now.year, now.month, now.day - (days - 1 - i)),
-    );
+    final start = DateTime(now.year, now.month, now.day)
+        .subtract(const Duration(days: 6));
+
+    return records.where((r) {
+      final d = DateTime(r.date.year, r.date.month, r.date.day);
+      return !d.isBefore(start);
+    }).toList();
   }
 
-  static bool sameDay(DateTime a, DateTime b) =>
-      a.year == b.year && a.month == b.month && a.day == b.day;
+  /// ---- Charts Logic ----
 
-  static double profitForDay(DateTime day, List<ProfitRecord> records) {
-    final r = records.where((e) => sameDay(e.date, day));
-    if (r.isEmpty) return 0;
-    return r.first.profit;
-  }
-
-  static double eggProductionForDay(
-    DateTime day,
+  /// Daily Profit (1 per day)
+  static List<double> profitByWeekday(
     List<ProfitRecord> records,
   ) {
-    final r = records.where((e) => sameDay(e.date, day));
-    if (r.isEmpty) return 0;
+    final data = List<double>.filled(7, 0);
 
-    // crude estimate — replace later if needed
-    return r.first.eggIncome > 0 ? r.first.eggIncome : 0;
+    for (final r in records) {
+      final index = r.date.weekday - 1;
+      data[index] = r.profit; // overwrite
+    }
+    return data;
   }
 
-  static double eggSalesForDay(
-    DateTime day,
+  /// Daily Egg Production (1 per day)
+  static List<double> eggProductionByWeekday(
     List<ProfitRecord> records,
   ) {
-    final r = records.where((e) => sameDay(e.date, day));
-    if (r.isEmpty) return 0;
+    final data = List<double>.filled(7, 0);
 
-    return r.fold(0.0, (sum, e) => sum + e.eggIncome);
+    for (final r in records) {
+      final index = r.date.weekday - 1;
+      data[index] = r.eggsProduced.toDouble(); // ✅ correct
+    }
+    return data;
+  }
+
+  /// Egg Sales (NOT daily → accumulate)
+  static List<double> eggSalesByWeekday(
+    List<ProfitRecord> records,
+  ) {
+    final data = List<double>.filled(7, 0);
+
+    for (final r in records) {
+      final index = r.date.weekday - 1;
+      data[index] += r.eggIncome; // accumulate
+    }
+    return data;
   }
 }

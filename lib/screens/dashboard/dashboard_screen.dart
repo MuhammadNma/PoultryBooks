@@ -1,16 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:poultry_profit_calculator/screens/dashboard/dashboard_charts.dart';
 import '../../controllers/profit_controller.dart';
+import '../../controllers/settings_controller.dart';
 import '../../widgets/result_card.dart';
 import '../../widgets/saved_profit_card_expandable.dart';
+import '../calendar_profit_view.dart';
 
 class DashboardScreen extends StatefulWidget {
   final ProfitController profitController;
+  final SettingsController settingsController;
   final void Function(int tabIndex) goToTab;
 
   const DashboardScreen({
     super.key,
     required this.profitController,
+    required this.settingsController,
     required this.goToTab,
   });
 
@@ -35,7 +39,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            DashboardCharts(controller: widget.profitController),
             // Today's Profit Summary
             const Text(
               'Today\'s Profit Summary',
@@ -78,13 +81,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
                 ElevatedButton.icon(
                   onPressed: () {
-                    widget.goToTab(3); // Calendar tab
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => CalendarProfitView(
+                          controller: widget.profitController,
+                          settingsController: widget.settingsController,
+                        ),
+                      ),
+                    );
                   },
                   icon: const Icon(Icons.calendar_today),
                   label: const Text('View History'),
                 ),
               ],
             ),
+            const Text(
+              'Charts',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            DashboardCharts(controller: widget.profitController),
 
             const SizedBox(height: 20),
 
@@ -108,7 +125,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
             const SizedBox(height: 12),
             TextButton(
               onPressed: () {
-                widget.goToTab(3); // Calendar tab
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => CalendarProfitView(
+                      controller: widget.profitController,
+                      settingsController: widget.settingsController,
+                    ),
+                  ),
+                );
               },
               child: const Text('View More', style: TextStyle(fontSize: 16)),
             ),
