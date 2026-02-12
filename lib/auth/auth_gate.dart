@@ -1,34 +1,135 @@
+// import 'package:flutter/material.dart';
+// import 'package:firebase_auth/firebase_auth.dart';
+
+// import '../screens/auth/login_screen.dart';
+// import '../navigation/bottom_nav.dart';
+// import '../controllers/transaction_controller.dart';
+// import '../controllers/profit_controller.dart';
+// import '../controllers/settings_controller.dart';
+
+// class AuthGate extends StatelessWidget {
+//   final TransactionController txController;
+
+//   const AuthGate({super.key, required this.txController});
+
+//   @override
+//   Widget build(BuildContext context) {
+//     return StreamBuilder<User?>(
+//       stream: FirebaseAuth.instance.authStateChanges(),
+//       builder: (context, snapshot) {
+//         // Loading
+//         if (snapshot.connectionState == ConnectionState.waiting) {
+//           return const Scaffold(
+//             body: Center(child: CircularProgressIndicator()),
+//           );
+//         }
+
+//         // Logged in
+//         if (snapshot.hasData) {
+//           final user = snapshot.data!;
+
+//           final profitController = ProfitController();
+//           final settingsController = SettingsController();
+
+//           return FutureBuilder(
+//             future: Future.wait([
+//               profitController.initForUser(user.uid),
+//               settingsController.init(),
+//             ]),
+//             builder: (context, initSnap) {
+//               if (initSnap.connectionState != ConnectionState.done) {
+//                 return const Scaffold(
+//                   body: Center(child: CircularProgressIndicator()),
+//                 );
+//               }
+
+//               return BottomNavScreen(
+//                 txController: txController,
+//                 profitController: profitController,
+//                 settingsController: settingsController,
+//               );
+//             },
+//           );
+//         }
+
+//         // Logged out
+//         return LoginScreen();
+//       },
+//     );
+//   }
+// }
+
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../screens/auth/login_screen.dart';
 import '../navigation/bottom_nav.dart';
 import '../controllers/transaction_controller.dart';
+import '../controllers/profit_controller.dart';
+import '../controllers/settings_controller.dart';
 
 class AuthGate extends StatelessWidget {
   final TransactionController txController;
 
-  const AuthGate({super.key, required this.txController});
+  const AuthGate({
+    super.key,
+    required this.txController,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<User?>(
-      stream: FirebaseAuth.instance.authStateChanges(),
-      builder: (context, snapshot) {
-        // Waiting for Firebase
-        if (snapshot.connectionState == ConnectionState.waiting) {
+    final settingsController = SettingsController();
+
+    return FutureBuilder(
+      future: settingsController.init(),
+      builder: (context, settingsSnap) {
+        if (settingsSnap.connectionState != ConnectionState.done) {
           return const Scaffold(
             body: Center(child: CircularProgressIndicator()),
           );
         }
 
-        // User logged in
-        if (snapshot.hasData) {
-          return BottomNavScreen(txController: txController);
-        }
+        return StreamBuilder<User?>(
+          stream: FirebaseAuth.instance.authStateChanges(),
+          builder: (context, snapshot) {
+            // Loading auth state
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Scaffold(
+                body: Center(child: CircularProgressIndicator()),
+              );
+            }
 
-        // User logged out
-        return const LoginScreen();
+            // ✅ LOGGED IN
+            if (snapshot.hasData) {
+              final user = snapshot.data!;
+              final profitController = ProfitController();
+              final transactionController = TransactionController();
+
+              return FutureBuilder(
+                future: profitController.initForUser(user.uid),
+                builder: (context, initSnap) {
+                  if (initSnap.connectionState != ConnectionState.done) {
+                    return const Scaffold(
+                      body: Center(child: CircularProgressIndicator()),
+                    );
+                  }
+
+                  return BottomNavScreen(
+                    txController: txController,
+                    profitController: profitController,
+                    settingsController: settingsController,
+                    transactionController: transactionController,
+                  );
+                },
+              );
+            }
+
+            // ❌ LOGGED OUT
+            return LoginScreen(
+              settingsController: settingsController,
+            );
+          },
+        );
       },
     );
   }

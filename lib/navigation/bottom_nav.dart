@@ -8,11 +8,21 @@ import '../controllers/settings_controller.dart';
 import '../screens/dashboard/dashboard_screen.dart';
 import '../screens/profit_calculator_screen.dart';
 import '../screens/customers/customers_screen.dart';
+import '../services/connectivity_sync_service.dart';
 
 class BottomNavScreen extends StatefulWidget {
   final TransactionController txController;
+  final ProfitController profitController;
+  final SettingsController settingsController;
+  final TransactionController transactionController;
 
-  const BottomNavScreen({super.key, required this.txController});
+  const BottomNavScreen({
+    super.key,
+    required this.txController,
+    required this.profitController,
+    required this.settingsController,
+    required this.transactionController,
+  });
 
   @override
   State<BottomNavScreen> createState() => _BottomNavScreenState();
@@ -21,46 +31,37 @@ class BottomNavScreen extends StatefulWidget {
 class _BottomNavScreenState extends State<BottomNavScreen> {
   int _index = 0;
 
-  final profitController = ProfitController();
-  final settingsController = SettingsController();
-
-  bool _ready = false;
+  late final ConnectivitySyncService _syncService;
 
   @override
   void initState() {
     super.initState();
-    _init();
-  }
-
-  Future<void> _init() async {
-    await profitController.init();
-    await settingsController.init();
-    if (mounted) setState(() => _ready = true);
+    _syncService = ConnectivitySyncService();
+    _syncService.start(widget.profitController, widget.transactionController);
   }
 
   @override
   Widget build(BuildContext context) {
-    if (!_ready) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
-    }
-
     return Scaffold(
       body: IndexedStack(
         index: _index,
         children: [
           DashboardScreen(
-            profitController: profitController,
+            profitController: widget.profitController,
+            settingsController: widget.settingsController,
             goToTab: (i) => setState(() => _index = i),
-            settingsController: settingsController,
           ),
           ProfitCalculatorScreen(
-            profitController: profitController,
-            settingsController: settingsController,
+            profitController: widget.profitController,
+            settingsController: widget.settingsController,
           ),
           CustomersScreen(txController: widget.txController),
-          SettingsScreen(controller: settingsController),
+          SettingsScreen(
+            controller: widget.settingsController,
+            profitController: widget.profitController,
+            transactionController: widget.transactionController,
+            // profitController: widget.profitController,
+          ),
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(

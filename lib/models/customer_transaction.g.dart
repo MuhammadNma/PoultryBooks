@@ -25,13 +25,14 @@ class CustomerTransactionAdapter extends TypeAdapter<CustomerTransaction> {
       totalAmount: fields[5] as double,
       amountPaid: fields[6] as double,
       date: fields[7] as DateTime,
+      synced: fields[8] as bool?,
     );
   }
 
   @override
   void write(BinaryWriter writer, CustomerTransaction obj) {
     writer
-      ..writeByte(8)
+      ..writeByte(9)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -47,7 +48,9 @@ class CustomerTransactionAdapter extends TypeAdapter<CustomerTransaction> {
       ..writeByte(6)
       ..write(obj.amountPaid)
       ..writeByte(7)
-      ..write(obj.date);
+      ..write(obj.date)
+      ..writeByte(8)
+      ..write(obj.synced);
   }
 
   @override

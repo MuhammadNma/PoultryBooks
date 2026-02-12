@@ -2,31 +2,56 @@ import 'package:hive/hive.dart';
 import '../models/profit_record.dart';
 
 class ProfitController {
-  static const _boxName = 'profit_records';
+  Box<ProfitRecord>? _box;
+  String? _currentUserId;
 
-  late Box<ProfitRecord> _box;
-  bool _initialized = false;
+  /// 🔑 Initialize controller for a specific user
+  Future<void> initForUser(String userId) async {
+    // Prevent reopening same box
+    if (_currentUserId == userId && _box != null) return;
 
-  Future<void> init() async {
-    if (_initialized) return;
+    // Close previous box if switching users
+    if (_box != null && _box!.isOpen) {
+      await _box!.close();
+    }
 
-    _box = await Hive.openBox<ProfitRecord>(_boxName);
-    _initialized = true;
+    _currentUserId = userId;
+    _box = await Hive.openBox<ProfitRecord>('profit_records_$userId');
   }
 
-  List<ProfitRecord> get records => _box.values.toList().reversed.toList();
+  /// 🔒 Safety guard
+  void _ensureInitialized() {
+    if (_box == null) {
+      throw Exception(
+        'ProfitController not initialized. '
+        'Call initForUser(userId) after login.',
+      );
+    }
+  }
+
+  /// ---------------- GETTERS ----------------
+
+  List<ProfitRecord> get records {
+    _ensureInitialized();
+    return _box!.values.toList().reversed.toList();
+  }
 
   ProfitRecord? get lastRecord {
-    if (_box.isEmpty) return null;
+    _ensureInitialized();
+    if (_box!.isEmpty) return null;
     return records.first;
   }
 
+  /// ---------------- CRUD ----------------
+
   Future<void> addRecord(ProfitRecord record) async {
-    await _box.add(record);
+    _ensureInitialized();
+    await _box!.add(record);
   }
 
   bool isSavedForToday(DateTime date) {
-    return _box.values.any(
+    _ensureInitialized();
+    return _box!.values.any(
       (r) =>
           r.date.year == date.year &&
           r.date.month == date.month &&
@@ -35,8 +60,9 @@ class ProfitController {
   }
 
   ProfitRecord? getRecordByDate(DateTime date) {
+    _ensureInitialized();
     try {
-      return _box.values.firstWhere(
+      return _box!.values.firstWhere(
         (r) =>
             r.date.year == date.year &&
             r.date.month == date.month &&
@@ -48,20 +74,36 @@ class ProfitController {
   }
 
   Future<void> deleteByDate(DateTime date) async {
-    final key = _box.keys.firstWhere(
+    _ensureInitialized();
+
+    final key = _box!.keys.firstWhere(
       (k) {
-        final r = _box.get(k);
+        final r = _box!.get(k);
         return r != null &&
             r.date.year == date.year &&
             r.date.month == date.month &&
             r.date.day == date.day;
       },
+      orElse: () => null,
     );
 
-    await _box.delete(key);
+    if (key != null) {
+      await _box!.delete(key);
+    }
   }
 
   Future<void> deleteRecord(ProfitRecord record) async {
     await deleteByDate(record.date);
+  }
+
+  /// ---------------- CLEANUP ----------------
+
+  /// Call on logout if you want to be explicit
+  Future<void> dispose() async {
+    if (_box != null && _box!.isOpen) {
+      await _box!.close();
+    }
+    _box = null;
+    _currentUserId = null;
   }
 }
