@@ -1,79 +1,107 @@
+// import 'package:poultry_profit_calculator/utils/currency.dart';
+
 // class AppSettings {
 //   final double pricePerCrate;
 //   final double feedBagCost;
 //   final double bagSizeKg;
+//   final String? farmName; // <-- new field
 
 //   AppSettings({
 //     required this.pricePerCrate,
 //     required this.feedBagCost,
 //     required this.bagSizeKg,
+//     this.farmName,
 //   });
 
 //   factory AppSettings.defaults() => AppSettings(
 //         pricePerCrate: 0,
 //         feedBagCost: 0,
-//         bagSizeKg: 50,
+//         bagSizeKg: 25,
+//         farmName: 'Your Farm',
 //       );
 
 //   Map<String, dynamic> toJson() => {
-//         'pricePerCrate': pricePerCrate,
-//         'feedBagCost': feedBagCost,
+//         'pricePerCrate': formatMoney(pricePerCrate),
+//         'feedBagCost': formatMoney(feedBagCost),
 //         'bagSizeKg': bagSizeKg,
+//         'farmName': farmName ?? 'Your Farm',
 //       };
 
-//   factory AppSettings.fromJson(Map<String, dynamic> json) {
-//     return AppSettings(
-//       pricePerCrate: (json['pricePerCrate'] ?? 0).toDouble(),
-//       feedBagCost: (json['feedBagCost'] ?? 0).toDouble(),
-//       bagSizeKg: (json['bagSizeKg'] ?? 50).toDouble(),
-//     );
-//   }
+//   factory AppSettings.fromJson(Map<String, dynamic> json) => AppSettings(
+//         pricePerCrate: (json['pricePerCrate'] ?? 0).toDouble(),
+//         feedBagCost: (json['feedBagCost'] ?? 0).toDouble(),
+//         bagSizeKg: (json['bagSizeKg'] ?? 25).toDouble(),
+//         farmName: json['farmName'],
+//       );
+
+//   AppSettings copyWith({
+//     double? pricePerCrate,
+//     double? feedBagCost,
+//     double? bagSizeKg,
+//     String? farmName,
+//   }) =>
+//       AppSettings(
+//         pricePerCrate: pricePerCrate ?? this.pricePerCrate,
+//         feedBagCost: feedBagCost ?? this.feedBagCost,
+//         bagSizeKg: bagSizeKg ?? this.bagSizeKg,
+//         farmName: farmName ?? this.farmName,
+//       );
 // }
 
 class AppSettings {
   final double pricePerCrate;
   final double feedBagCost;
   final double bagSizeKg;
-  final String? farmName; // <-- new field
+  final String farmName;
 
-  AppSettings({
+  const AppSettings({
     required this.pricePerCrate,
     required this.feedBagCost,
     required this.bagSizeKg,
-    this.farmName,
+    required this.farmName,
   });
 
-  factory AppSettings.defaults() => AppSettings(
+  /* ---------------- DEFAULTS ---------------- */
+
+  factory AppSettings.defaults() => const AppSettings(
         pricePerCrate: 0,
         feedBagCost: 0,
         bagSizeKg: 25,
         farmName: 'Your Farm',
       );
 
+  /* ---------------- JSON ---------------- */
+
   Map<String, dynamic> toJson() => {
+        // ✅ STORE RAW NUMBERS
         'pricePerCrate': pricePerCrate,
         'feedBagCost': feedBagCost,
         'bagSizeKg': bagSizeKg,
-        'farmName': farmName ?? 'Your Farm',
+        'farmName': farmName,
       };
 
-  factory AppSettings.fromJson(Map<String, dynamic> json) => AppSettings(
-        pricePerCrate: (json['pricePerCrate'] ?? 0).toDouble(),
-        feedBagCost: (json['feedBagCost'] ?? 0).toDouble(),
-        bagSizeKg: (json['bagSizeKg'] ?? 25).toDouble(),
-        farmName: json['farmName'],
-      );
+  factory AppSettings.fromJson(Map<String, dynamic> json) {
+    return AppSettings(
+      pricePerCrate: (json['pricePerCrate'] ?? 0).toDouble(),
+      feedBagCost: (json['feedBagCost'] ?? 0).toDouble(),
+      bagSizeKg: (json['bagSizeKg'] ?? 25).toDouble(),
+      farmName: json['farmName'] ?? 'Your Farm',
+    );
+  }
+
+  /* ---------------- COPY ---------------- */
 
   AppSettings copyWith({
     double? pricePerCrate,
     double? feedBagCost,
     double? bagSizeKg,
     String? farmName,
-  }) =>
-      AppSettings(
-        pricePerCrate: pricePerCrate ?? this.pricePerCrate,
-        feedBagCost: feedBagCost ?? this.feedBagCost,
-        bagSizeKg: bagSizeKg ?? this.bagSizeKg,
-        farmName: farmName ?? this.farmName,
-      );
+  }) {
+    return AppSettings(
+      pricePerCrate: pricePerCrate ?? this.pricePerCrate,
+      feedBagCost: feedBagCost ?? this.feedBagCost,
+      bagSizeKg: bagSizeKg ?? this.bagSizeKg,
+      farmName: farmName ?? this.farmName,
+    );
+  }
 }

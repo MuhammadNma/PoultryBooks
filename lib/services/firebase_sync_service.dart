@@ -55,6 +55,132 @@
 //   String _docId(DateTime d) => '${d.year}-${d.month}-${d.day}';
 // }
 
+// import 'package:cloud_firestore/cloud_firestore.dart';
+// import 'package:firebase_auth/firebase_auth.dart';
+
+// import '../controllers/transaction_controller.dart';
+// import '../controllers/profit_controller.dart';
+// import '../models/customer.dart';
+// import '../models/customer_transaction.dart';
+// import '../models/profit_record.dart';
+
+// class FirebaseSyncService {
+//   final _firestore = FirebaseFirestore.instance;
+//   final _auth = FirebaseAuth.instance;
+
+//   String get _uid => _auth.currentUser!.uid;
+
+//   /// =========================
+//   /// CUSTOMERS
+//   /// =========================
+
+//   Future<void> pushUnsyncedCustomers(TransactionController controller) async {
+//     for (final customer in controller.customers) {
+//       if (customer.isSynced) continue;
+
+//       await _firestore
+//           .collection('users')
+//           .doc(_uid)
+//           .collection('customers')
+//           .doc(customer.id)
+//           .set(customer.toJson());
+
+//       customer.synced = true;
+//       await customer.save();
+//     }
+//   }
+
+//   Future<void> pullCustomers(TransactionController controller) async {
+//     final snapshot = await _firestore
+//         .collection('users')
+//         .doc(_uid)
+//         .collection('customers')
+//         .get();
+
+//     for (final doc in snapshot.docs) {
+//       final existing = controller.customersBox.get(doc.id);
+//       if (existing != null) continue;
+
+//       final customer = Customer.fromJson(doc.data());
+//       await controller.customersBox.put(customer.id, customer);
+//     }
+//   }
+
+//   /// =========================
+//   /// TRANSACTIONS
+//   /// =========================
+
+//   Future<void> pushUnsyncedTransactions(
+//       TransactionController controller) async {
+//     for (final tx in controller.txBox.values) {
+//       if (tx.isSynced) continue;
+
+//       await _firestore
+//           .collection('users')
+//           .doc(_uid)
+//           .collection('transactions')
+//           .doc(tx.id)
+//           .set(tx.toJson());
+
+//       tx.synced = true;
+//       await tx.save();
+//     }
+//   }
+
+//   Future<void> pullTransactions(TransactionController controller) async {
+//     final snapshot = await _firestore
+//         .collection('users')
+//         .doc(_uid)
+//         .collection('transactions')
+//         .get();
+
+//     for (final doc in snapshot.docs) {
+//       if (controller.txBox.get(doc.id) != null) continue;
+
+//       final tx = CustomerTransaction.fromJson(doc.data());
+//       await controller.txBox.put(tx.id, tx);
+//     }
+//   }
+
+//   /// =========================
+//   /// PROFITS (UNCHANGED)
+//   /// =========================
+
+//   Future<void> syncProfits(ProfitController controller) async {
+//     for (final record in controller.records) {
+//       if (record.isSynced) continue;
+
+//       final docId =
+//           '${record.date.year}-${record.date.month}-${record.date.day}';
+
+//       await _firestore
+//           .collection('users')
+//           .doc(_uid)
+//           .collection('profit_records')
+//           .doc(docId)
+//           .set(record.toJson());
+
+//       record.synced = true;
+//       await record.save();
+//     }
+//   }
+
+//   /// =========================
+//   /// SYNC EVERYTHING
+//   /// =========================
+
+//   Future<void> syncAll(
+//     TransactionController txController,
+//     ProfitController profitController,
+//   ) async {
+//     await pushUnsyncedCustomers(txController);
+//     await pushUnsyncedTransactions(txController);
+//     await pullCustomers(txController);
+//     await pullTransactions(txController);
+//     await syncProfits(profitController);
+//   }
+// }
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -65,22 +191,23 @@ import '../models/customer_transaction.dart';
 import '../models/profit_record.dart';
 
 class FirebaseSyncService {
-  final _firestore = FirebaseFirestore.instance;
-  final _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   String get _uid => _auth.currentUser!.uid;
 
-  /// =========================
+  DocumentReference<Map<String, dynamic>> get _userDoc =>
+      _firestore.collection('users').doc(_uid);
+
+  /// =====================================================
   /// CUSTOMERS
-  /// =========================
+  /// =====================================================
 
   Future<void> pushUnsyncedCustomers(TransactionController controller) async {
-    for (final customer in controller.customers) {
+    for (final customer in controller.customersBox.values) {
       if (customer.isSynced) continue;
 
-      await _firestore
-          .collection('users')
-          .doc(_uid)
+      await _userDoc
           .collection('customers')
           .doc(customer.id)
           .set(customer.toJson());
@@ -91,36 +218,28 @@ class FirebaseSyncService {
   }
 
   Future<void> pullCustomers(TransactionController controller) async {
-    final snapshot = await _firestore
-        .collection('users')
-        .doc(_uid)
-        .collection('customers')
-        .get();
+    final snapshot = await _userDoc.collection('customers').get();
 
     for (final doc in snapshot.docs) {
-      final existing = controller.customersBox.get(doc.id);
-      if (existing != null) continue;
+      final local = controller.customersBox.get(doc.id);
+
+      if (local != null) continue;
 
       final customer = Customer.fromJson(doc.data());
       await controller.customersBox.put(customer.id, customer);
     }
   }
 
-  /// =========================
+  /// =====================================================
   /// TRANSACTIONS
-  /// =========================
+  /// =====================================================
 
   Future<void> pushUnsyncedTransactions(
       TransactionController controller) async {
     for (final tx in controller.txBox.values) {
       if (tx.isSynced) continue;
 
-      await _firestore
-          .collection('users')
-          .doc(_uid)
-          .collection('transactions')
-          .doc(tx.id)
-          .set(tx.toJson());
+      await _userDoc.collection('transactions').doc(tx.id).set(tx.toJson());
 
       tx.synced = true;
       await tx.save();
@@ -128,11 +247,7 @@ class FirebaseSyncService {
   }
 
   Future<void> pullTransactions(TransactionController controller) async {
-    final snapshot = await _firestore
-        .collection('users')
-        .doc(_uid)
-        .collection('transactions')
-        .get();
+    final snapshot = await _userDoc.collection('transactions').get();
 
     for (final doc in snapshot.docs) {
       if (controller.txBox.get(doc.id) != null) continue;
@@ -142,20 +257,18 @@ class FirebaseSyncService {
     }
   }
 
-  /// =========================
-  /// PROFITS (UNCHANGED)
-  /// =========================
+  /// =====================================================
+  /// PROFITS (NOW FULL PUSH + PULL)
+  /// =====================================================
 
-  Future<void> syncProfits(ProfitController controller) async {
+  Future<void> pushUnsyncedProfits(ProfitController controller) async {
     for (final record in controller.records) {
       if (record.isSynced) continue;
 
       final docId =
           '${record.date.year}-${record.date.month}-${record.date.day}';
 
-      await _firestore
-          .collection('users')
-          .doc(_uid)
+      await _userDoc
           .collection('profit_records')
           .doc(docId)
           .set(record.toJson());
@@ -165,18 +278,39 @@ class FirebaseSyncService {
     }
   }
 
-  /// =========================
-  /// SYNC EVERYTHING
-  /// =========================
+  Future<void> pullProfits(ProfitController controller) async {
+    final snapshot = await _firestore
+        .collection('users')
+        .doc(_uid)
+        .collection('profit_records')
+        .get();
+
+    for (final doc in snapshot.docs) {
+      final date = DateTime.parse(doc['date']);
+
+      if (controller.getRecordByDate(date) != null) continue;
+
+      final record = ProfitRecord.fromJson(doc.data());
+      await controller.addRecord(record);
+    }
+  }
+
+  /// =====================================================
+  /// FULL SYNC
+  /// =====================================================
 
   Future<void> syncAll(
     TransactionController txController,
     ProfitController profitController,
   ) async {
+    /// PUSH FIRST
     await pushUnsyncedCustomers(txController);
     await pushUnsyncedTransactions(txController);
+    await pushUnsyncedProfits(profitController);
+
+    /// THEN PULL
     await pullCustomers(txController);
     await pullTransactions(txController);
-    await syncProfits(profitController);
+    await pullProfits(profitController);
   }
 }

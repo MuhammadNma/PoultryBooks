@@ -10,7 +10,7 @@ class DashboardCharts extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final recent = ChartUtils.last7DaysRecords(controller.records);
+    final recent = ChartUtils.currentWeekRecords(controller.records);
 
     final labels = ChartUtils.weekdayLabels();
 
@@ -31,14 +31,14 @@ class DashboardCharts extends StatelessWidget {
           color: Colors.orange,
           yAxisTitle: 'Eggs Produced',
         ),
-        SimpleBarChart(
-          title: 'Egg Sales',
-          values: ChartUtils.eggSalesByWeekday(recent),
-          xLabels: labels,
-          color: Colors.blue,
-          showNaira: true,
-          yAxisTitle: 'Amount',
-        ),
+        // SimpleBarChart(
+        //   title: 'Egg Sales',
+        //   values: ChartUtils.eggSalesByWeekday(recent),
+        //   xLabels: labels,
+        //   color: Colors.blue,
+        //   showNaira: true,
+        //   yAxisTitle: 'Amount',
+        // ),
       ],
     );
   }

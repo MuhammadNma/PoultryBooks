@@ -5,20 +5,30 @@ class ChartUtils {
   static List<String> weekdayLabels() =>
       const ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-  static List<ProfitRecord> last7DaysRecords(
+  /// ---- New Week Logic ----
+  static List<ProfitRecord> currentWeekRecords(
     List<ProfitRecord> records,
   ) {
     final now = DateTime.now();
-    final start = DateTime(now.year, now.month, now.day)
-        .subtract(const Duration(days: 6));
+
+    // Find Monday of this week
+    final startOfWeek = now.subtract(
+      Duration(days: now.weekday - 1),
+    );
+
+    final start = DateTime(
+      startOfWeek.year,
+      startOfWeek.month,
+      startOfWeek.day,
+    );
+
+    final end = start.add(const Duration(days: 7));
 
     return records.where((r) {
       final d = DateTime(r.date.year, r.date.month, r.date.day);
-      return !d.isBefore(start);
+      return !d.isBefore(start) && d.isBefore(end);
     }).toList();
   }
-
-  /// ---- Charts Logic ----
 
   /// Daily Profit (1 per day)
   static List<double> profitByWeekday(

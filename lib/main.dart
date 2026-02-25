@@ -98,7 +98,7 @@ class PoultryProfitApp extends StatelessWidget {
         return MaterialApp(
           title: 'Poultry Profit Calculator',
           theme: AppTheme.light() ?? ThemeData.light(), // ✅ safe fallback
-          debugShowCheckedModeBanner: false,
+          debugShowCheckedModeBanner: true,
           home: AuthGate(txController: txController),
         );
       },

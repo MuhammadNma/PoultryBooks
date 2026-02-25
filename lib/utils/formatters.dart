@@ -4,7 +4,7 @@ String formatNaira(double value) {
   final formatter = NumberFormat.currency(
     locale: 'en_NG',
     symbol: '₦',
-    decimalDigits: 2,
+    decimalDigits: 0,
   );
   return formatter.format(value);
 }

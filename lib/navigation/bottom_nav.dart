@@ -48,6 +48,7 @@ class _BottomNavScreenState extends State<BottomNavScreen> {
         children: [
           DashboardScreen(
             profitController: widget.profitController,
+            transactionController: widget.transactionController,
             settingsController: widget.settingsController,
             goToTab: (i) => setState(() => _index = i),
           ),

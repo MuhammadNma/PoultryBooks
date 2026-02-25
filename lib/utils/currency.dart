@@ -1,9 +1,11 @@
 import 'package:intl/intl.dart';
 
-final _currencyFormatter = NumberFormat.currency(
-  locale: 'en_NG',
-  symbol: '₦',
-  decimalDigits: 2,
-);
+String formatMoney(double value) {
+  final formatter = NumberFormat.currency(
+    locale: 'en_NG',
+    symbol: '₦',
+    decimalDigits: value % 1 == 0 ? 0 : 2,
+  );
 
-String formatMoney(num value) => _currencyFormatter.format(value);
+  return formatter.format(value);
+}
