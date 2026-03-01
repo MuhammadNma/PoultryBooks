@@ -71,8 +71,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         0, (sum, tx) => sum + (tx.crates * eggsPerCrate) + tx.pieces);
 
     final totalProfit = widget.profitController.records
-            .fold<double>(0.0, (sum, r) => sum + r.profit) +
-        totalIncomeFromSales;
+        .fold<double>(0.0, (sum, r) => sum + r.profit);
 
     final totalEggsLaid = widget.profitController.records
         .fold<int>(0, (sum, r) => sum + r.eggsProduced);
@@ -139,13 +138,13 @@ class _DashboardScreenState extends State<DashboardScreen>
                   color: Colors.green.shade400,
                   icon: Icons.savings,
                 ),
-                const SizedBox(width: 12),
-                _summaryCard(
-                  label: 'Total Income',
-                  value: formatMoney(totalIncomeFromSales),
-                  color: Colors.blue.shade400,
-                  icon: Icons.wallet,
-                ),
+                // const SizedBox(width: 12),
+                // _summaryCard(
+                //   label: 'Total Income',
+                //   value: formatMoney(totalIncomeFromSales),
+                //   color: Colors.blue.shade400,
+                //   icon: Icons.wallet,
+                // ),
                 const SizedBox(width: 12),
                 _summaryCard(
                   label: 'Eggs Sold',

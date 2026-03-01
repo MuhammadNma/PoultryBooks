@@ -5,8 +5,10 @@
 // class AddTransactionScreen extends StatefulWidget {
 //   final String customerId;
 
-//   const AddTransactionScreen({Key? key, required this.customerId})
-//       : super(key: key);
+//   const AddTransactionScreen({
+//     Key? key,
+//     required this.customerId,
+//   }) : super(key: key);
 
 //   @override
 //   State<AddTransactionScreen> createState() => _AddTransactionScreenState();
@@ -53,9 +55,7 @@
 //   }
 
 //   void _resetAutoCalculation() {
-//     setState(() {
-//       _userEditedTotal = false;
-//     });
+//     setState(() => _userEditedTotal = false);
 //     _recalculateTotal();
 //   }
 
@@ -69,7 +69,7 @@
 //       pieces: _parse(piecesCtrl).toInt(),
 //       pricePerCrate: _parse(priceCtrl),
 //       totalAmount: _parse(totalCtrl),
-//       amountPaid: _parse(paidCtrl), // empty → 0
+//       amountPaid: _parse(paidCtrl),
 //       date: DateTime.now(),
 //     );
 
@@ -88,77 +88,128 @@
 
 //   @override
 //   Widget build(BuildContext context) {
+//     final theme = Theme.of(context);
+
 //     return Scaffold(
-//       appBar: AppBar(title: const Text('Add Transaction')),
-//       body: Padding(
-//         padding: const EdgeInsets.all(12),
+//       appBar: AppBar(
+//         title: const Text('New Transaction'),
+//         centerTitle: true,
+//       ),
+//       body: SafeArea(
 //         child: Form(
 //           key: _formKey,
-//           child: ListView(
+//           child: Column(
 //             children: [
-//               _numberField(
-//                 controller: cratesCtrl,
-//                 label: 'Crates',
-//               ),
-//               const SizedBox(height: 12),
+//               Expanded(
+//                 child: ListView(
+//                   padding: const EdgeInsets.all(20),
+//                   children: [
+//                     /// QUANTITY SECTION
+//                     _SectionCard(
+//                       title: "Quantity",
+//                       icon: Icons.inventory_2_outlined,
+//                       children: [
+//                         _numberField(
+//                           controller: cratesCtrl,
+//                           label: 'Crates',
+//                         ),
+//                         const SizedBox(height: 16),
+//                         _numberField(
+//                           controller: piecesCtrl,
+//                           label: 'Egg Pieces',
+//                           hint: 'Optional',
+//                         ),
+//                       ],
+//                     ),
 
-//               _numberField(
-//                 controller: piecesCtrl,
-//                 label: 'Egg Pieces',
-//                 hint: 'Optional',
-//               ),
-//               const SizedBox(height: 12),
+//                     const SizedBox(height: 20),
 
-//               _numberField(
-//                 controller: priceCtrl,
-//                 label: 'Price per Crate',
-//                 prefix: '₦',
-//               ),
-//               const SizedBox(height: 12),
+//                     /// PRICING SECTION
+//                     _SectionCard(
+//                       title: "Pricing",
+//                       icon: Icons.attach_money,
+//                       children: [
+//                         _numberField(
+//                           controller: priceCtrl,
+//                           label: 'Price per Crate',
+//                           prefix: '₦ ',
+//                         ),
+//                         const SizedBox(height: 16),
 
-//               /// TOTAL (AUTO)
-//               TextFormField(
-//                 controller: totalCtrl,
-//                 keyboardType: TextInputType.number,
-//                 decoration: InputDecoration(
-//                   labelText: 'Total Amount',
-//                   prefixText: '₦',
-//                   hintText: 'Auto-calculated',
-//                   suffixIcon: _userEditedTotal
-//                       ? IconButton(
-//                           icon: const Icon(Icons.refresh),
-//                           tooltip: 'Reset auto calculation',
-//                           onPressed: _resetAutoCalculation,
-//                         )
-//                       : null,
-//                   border: const OutlineInputBorder(),
+//                         /// TOTAL
+//                         TextFormField(
+//                           controller: totalCtrl,
+//                           keyboardType: TextInputType.number,
+//                           decoration: InputDecoration(
+//                             labelText: 'Total Amount',
+//                             prefixText: '₦ ',
+//                             hintText: 'Auto-calculated',
+//                             filled: true,
+//                             border: OutlineInputBorder(
+//                               borderRadius: BorderRadius.circular(14),
+//                             ),
+//                             suffixIcon: _userEditedTotal
+//                                 ? IconButton(
+//                                     icon: const Icon(Icons.autorenew),
+//                                     tooltip: 'Re-enable auto calculation',
+//                                     onPressed: _resetAutoCalculation,
+//                                   )
+//                                 : const Icon(Icons.calculate_outlined),
+//                           ),
+//                           validator: (v) => v == null || v.isEmpty
+//                               ? 'Enter total amount'
+//                               : null,
+//                           onChanged: (_) {
+//                             if (!_userEditedTotal) {
+//                               setState(() => _userEditedTotal = true);
+//                             }
+//                           },
+//                         ),
+//                       ],
+//                     ),
+
+//                     const SizedBox(height: 20),
+
+//                     /// PAYMENT SECTION
+//                     _SectionCard(
+//                       title: "Payment",
+//                       icon: Icons.payments_outlined,
+//                       children: [
+//                         TextFormField(
+//                           controller: paidCtrl,
+//                           keyboardType: TextInputType.number,
+//                           decoration: InputDecoration(
+//                             labelText: 'Amount Paid',
+//                             prefixText: '₦ ',
+//                             hintText: 'Leave empty if unpaid',
+//                             filled: true,
+//                             border: OutlineInputBorder(
+//                               borderRadius: BorderRadius.circular(14),
+//                             ),
+//                           ),
+//                         ),
+//                       ],
+//                     ),
+
+//                     const SizedBox(height: 30),
+//                   ],
 //                 ),
-//                 validator: (v) =>
-//                     v == null || v.isEmpty ? 'Enter total amount' : null,
-//                 onChanged: (_) {
-//                   if (!_userEditedTotal) {
-//                     setState(() => _userEditedTotal = true);
-//                   }
-//                 },
 //               ),
-//               const SizedBox(height: 12),
 
-//               /// AMOUNT PAID (MANUAL)
-//               TextFormField(
-//                 controller: paidCtrl,
-//                 keyboardType: TextInputType.number,
-//                 decoration: const InputDecoration(
-//                   labelText: 'Amount Paid',
-//                   prefixText: '₦',
-//                   hintText: 'Leave empty if not paid',
-//                   border: OutlineInputBorder(),
+//               /// STICKY SAVE BUTTON
+//               Padding(
+//                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+//                 child: SizedBox(
+//                   width: double.infinity,
+//                   height: 55,
+//                   child: FilledButton(
+//                     onPressed: _save,
+//                     child: const Text(
+//                       'Save Transaction',
+//                       style: TextStyle(fontSize: 16),
+//                     ),
+//                   ),
 //                 ),
-//               ),
-
-//               const SizedBox(height: 20),
-//               ElevatedButton(
-//                 onPressed: _save,
-//                 child: const Text('Save Transaction'),
 //               ),
 //             ],
 //           ),
@@ -180,7 +231,53 @@
 //         labelText: label,
 //         hintText: hint,
 //         prefixText: prefix,
-//         border: const OutlineInputBorder(),
+//         filled: true,
+//         border: OutlineInputBorder(
+//           borderRadius: BorderRadius.circular(14),
+//         ),
+//       ),
+//     );
+//   }
+// }
+
+// /// Reusable Section Card
+// class _SectionCard extends StatelessWidget {
+//   final String title;
+//   final IconData icon;
+//   final List<Widget> children;
+
+//   const _SectionCard({
+//     required this.title,
+//     required this.icon,
+//     required this.children,
+//   });
+
+//   @override
+//   Widget build(BuildContext context) {
+//     return Card(
+//       elevation: 0,
+//       shape: RoundedRectangleBorder(
+//         borderRadius: BorderRadius.circular(18),
+//       ),
+//       child: Padding(
+//         padding: const EdgeInsets.all(18),
+//         child: Column(
+//           crossAxisAlignment: CrossAxisAlignment.start,
+//           children: [
+//             Row(
+//               children: [
+//                 Icon(icon),
+//                 const SizedBox(width: 8),
+//                 Text(
+//                   title,
+//                   style: Theme.of(context).textTheme.titleMedium,
+//                 ),
+//               ],
+//             ),
+//             const SizedBox(height: 18),
+//             ...children,
+//           ],
+//         ),
 //       ),
 //     );
 //   }
@@ -192,10 +289,12 @@ import '../../models/customer_transaction.dart';
 
 class AddTransactionScreen extends StatefulWidget {
   final String customerId;
+  final CustomerTransaction? transaction;
 
   const AddTransactionScreen({
     Key? key,
     required this.customerId,
+    this.transaction,
   }) : super(key: key);
 
   @override
@@ -212,10 +311,25 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   final paidCtrl = TextEditingController();
 
   bool _userEditedTotal = false;
+  DateTime selectedDate = DateTime.now();
+
+  bool get isEditing => widget.transaction != null;
 
   @override
   void initState() {
     super.initState();
+
+    if (isEditing) {
+      final tx = widget.transaction!;
+      cratesCtrl.text = tx.crates.toString();
+      piecesCtrl.text = tx.pieces.toString();
+      priceCtrl.text = tx.pricePerCrate.toString();
+      totalCtrl.text = tx.totalAmount.toString();
+      paidCtrl.text = tx.amountPaid.toString();
+      selectedDate = tx.date;
+      _userEditedTotal = true;
+    }
+
     cratesCtrl.addListener(_recalculateTotal);
     piecesCtrl.addListener(_recalculateTotal);
     priceCtrl.addListener(_recalculateTotal);
@@ -251,14 +365,14 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     final tx = CustomerTransaction(
-      id: const Uuid().v4(),
+      id: isEditing ? widget.transaction!.id : const Uuid().v4(),
       customerId: widget.customerId,
       crates: _parse(cratesCtrl).toInt(),
       pieces: _parse(piecesCtrl).toInt(),
       pricePerCrate: _parse(priceCtrl),
       totalAmount: _parse(totalCtrl),
       amountPaid: _parse(paidCtrl),
-      date: DateTime.now(),
+      date: selectedDate,
     );
 
     Navigator.pop(context, tx);
@@ -276,11 +390,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Scaffold(
       appBar: AppBar(
-        title: const Text('New Transaction'),
+        title: Text(isEditing ? 'Edit Transaction' : 'New Transaction'),
         centerTitle: true,
       ),
       body: SafeArea(
@@ -292,109 +404,39 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                 child: ListView(
                   padding: const EdgeInsets.all(20),
                   children: [
-                    /// QUANTITY SECTION
-                    _SectionCard(
-                      title: "Quantity",
-                      icon: Icons.inventory_2_outlined,
-                      children: [
-                        _numberField(
-                          controller: cratesCtrl,
-                          label: 'Crates',
-                        ),
-                        const SizedBox(height: 16),
-                        _numberField(
-                          controller: piecesCtrl,
-                          label: 'Egg Pieces',
-                          hint: 'Optional',
-                        ),
-                      ],
+                    _numberField(controller: cratesCtrl, label: 'Crates'),
+                    const SizedBox(height: 16),
+                    _numberField(controller: piecesCtrl, label: 'Egg Pieces'),
+                    const SizedBox(height: 16),
+                    _numberField(
+                      controller: priceCtrl,
+                      label: 'Price per Crate',
+                      prefix: '₦ ',
                     ),
-
-                    const SizedBox(height: 20),
-
-                    /// PRICING SECTION
-                    _SectionCard(
-                      title: "Pricing",
-                      icon: Icons.attach_money,
-                      children: [
-                        _numberField(
-                          controller: priceCtrl,
-                          label: 'Price per Crate',
-                          prefix: '₦ ',
-                        ),
-                        const SizedBox(height: 16),
-
-                        /// TOTAL
-                        TextFormField(
-                          controller: totalCtrl,
-                          keyboardType: TextInputType.number,
-                          decoration: InputDecoration(
-                            labelText: 'Total Amount',
-                            prefixText: '₦ ',
-                            hintText: 'Auto-calculated',
-                            filled: true,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            suffixIcon: _userEditedTotal
-                                ? IconButton(
-                                    icon: const Icon(Icons.autorenew),
-                                    tooltip: 'Re-enable auto calculation',
-                                    onPressed: _resetAutoCalculation,
-                                  )
-                                : const Icon(Icons.calculate_outlined),
-                          ),
-                          validator: (v) => v == null || v.isEmpty
-                              ? 'Enter total amount'
-                              : null,
-                          onChanged: (_) {
-                            if (!_userEditedTotal) {
-                              setState(() => _userEditedTotal = true);
-                            }
-                          },
-                        ),
-                      ],
+                    const SizedBox(height: 16),
+                    _numberField(
+                      controller: totalCtrl,
+                      label: 'Total Amount',
+                      prefix: '₦ ',
                     ),
-
-                    const SizedBox(height: 20),
-
-                    /// PAYMENT SECTION
-                    _SectionCard(
-                      title: "Payment",
-                      icon: Icons.payments_outlined,
-                      children: [
-                        TextFormField(
-                          controller: paidCtrl,
-                          keyboardType: TextInputType.number,
-                          decoration: InputDecoration(
-                            labelText: 'Amount Paid',
-                            prefixText: '₦ ',
-                            hintText: 'Leave empty if unpaid',
-                            filled: true,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                          ),
-                        ),
-                      ],
+                    const SizedBox(height: 16),
+                    _numberField(
+                      controller: paidCtrl,
+                      label: 'Amount Paid',
+                      prefix: '₦ ',
                     ),
-
-                    const SizedBox(height: 30),
                   ],
                 ),
               ),
-
-              /// STICKY SAVE BUTTON
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                padding: const EdgeInsets.all(20),
                 child: SizedBox(
                   width: double.infinity,
                   height: 55,
                   child: FilledButton(
                     onPressed: _save,
-                    child: const Text(
-                      'Save Transaction',
-                      style: TextStyle(fontSize: 16),
+                    child: Text(
+                      isEditing ? 'Update Transaction' : 'Save Transaction',
                     ),
                   ),
                 ),
@@ -409,7 +451,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   Widget _numberField({
     required TextEditingController controller,
     required String label,
-    String? hint,
     String? prefix,
   }) {
     return TextFormField(
@@ -417,54 +458,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       keyboardType: TextInputType.number,
       decoration: InputDecoration(
         labelText: label,
-        hintText: hint,
         prefixText: prefix,
-        filled: true,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-        ),
-      ),
-    );
-  }
-}
-
-/// Reusable Section Card
-class _SectionCard extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  final List<Widget> children;
-
-  const _SectionCard({
-    required this.title,
-    required this.icon,
-    required this.children,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(icon),
-                const SizedBox(width: 8),
-                Text(
-                  title,
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-              ],
-            ),
-            const SizedBox(height: 18),
-            ...children,
-          ],
         ),
       ),
     );

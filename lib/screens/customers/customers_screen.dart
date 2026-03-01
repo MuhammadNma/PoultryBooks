@@ -173,12 +173,12 @@ class _CustomersScreenState extends State<CustomersScreen> {
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.grey),
             ),
-            const SizedBox(height: 20),
-            ElevatedButton.icon(
-              onPressed: _addCustomer,
-              icon: const Icon(Icons.person_add),
-              label: const Text("Add First Customer"),
-            )
+            // const SizedBox(height: 20),
+            // ElevatedButton.icon(
+            //   onPressed: _addCustomer,
+            //   icon: const Icon(Icons.person_add),
+            //   label: const Text("Add First Customer"),
+            // )
           ],
         ),
       ),
