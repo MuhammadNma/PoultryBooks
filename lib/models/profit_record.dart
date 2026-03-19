@@ -22,9 +22,9 @@
 //   @HiveField(5)
 //   final int eggsProduced;
 
-//   /// ✅ NEW — sync flag
+//   /// ✅ nullable internally
 //   @HiveField(6)
-//   bool synced;
+//   bool? synced;
 
 //   ProfitRecord({
 //     required this.date,
@@ -33,10 +33,11 @@
 //     required this.feedCost,
 //     required this.fixedCostPerDay,
 //     int? eggsProduced,
-//     this.synced = false,
-//   }) : eggsProduced = eggsProduced ?? 0;
+//     bool? synced,
+//   })  : eggsProduced = eggsProduced ?? 0,
+//         synced = synced ?? false;
 
-//   /// 🔁 JSON (for Firestore)
+//   /// 🔁 JSON (Firestore)
 //   Map<String, dynamic> toJson() => {
 //         'date': date.toIso8601String(),
 //         'profit': profit,
@@ -53,8 +54,11 @@
 //         feedCost: (json['feedCost'] ?? 0).toDouble(),
 //         fixedCostPerDay: (json['fixedCostPerDay'] ?? 0).toDouble(),
 //         eggsProduced: (json['eggsProduced'] ?? 0),
-//         synced: true, // 👈 cloud data is already synced
+//         synced: true,
 //       );
+
+//   /// Safe getter
+//   bool get isSynced => synced ?? false;
 // }
 
 import 'package:hive/hive.dart';
@@ -81,9 +85,12 @@ class ProfitRecord extends HiveObject {
   @HiveField(5)
   final int eggsProduced;
 
-  /// ✅ nullable internally
   @HiveField(6)
   bool? synced;
+
+  /// ✅ NEW: amount of feed eaten in kg
+  @HiveField(7)
+  final double feedEatenKg;
 
   ProfitRecord({
     required this.date,
@@ -93,10 +100,11 @@ class ProfitRecord extends HiveObject {
     required this.fixedCostPerDay,
     int? eggsProduced,
     bool? synced,
+    required this.feedEatenKg, // add required
   })  : eggsProduced = eggsProduced ?? 0,
         synced = synced ?? false;
 
-  /// 🔁 JSON (Firestore)
+  /// JSON (Firestore)
   Map<String, dynamic> toJson() => {
         'date': date.toIso8601String(),
         'profit': profit,
@@ -104,6 +112,7 @@ class ProfitRecord extends HiveObject {
         'feedCost': feedCost,
         'fixedCostPerDay': fixedCostPerDay,
         'eggsProduced': eggsProduced,
+        'feedEatenKg': feedEatenKg, // added
       };
 
   factory ProfitRecord.fromJson(Map<String, dynamic> json) => ProfitRecord(
@@ -113,9 +122,9 @@ class ProfitRecord extends HiveObject {
         feedCost: (json['feedCost'] ?? 0).toDouble(),
         fixedCostPerDay: (json['fixedCostPerDay'] ?? 0).toDouble(),
         eggsProduced: (json['eggsProduced'] ?? 0),
+        feedEatenKg: (json['feedEatenKg'] ?? 0).toDouble(),
         synced: true,
       );
 
-  /// Safe getter
   bool get isSynced => synced ?? false;
 }

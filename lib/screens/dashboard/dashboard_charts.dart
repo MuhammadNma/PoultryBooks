@@ -61,7 +61,7 @@ class DashboardCharts extends StatefulWidget {
 class _DashboardChartsState extends State<DashboardCharts> {
   int _profitWeek = 0;
   int _productionWeek = 0;
-  int _salesWeek = 0;
+  // int _salesWeek = 0;
 
   @override
   Widget build(BuildContext context) {

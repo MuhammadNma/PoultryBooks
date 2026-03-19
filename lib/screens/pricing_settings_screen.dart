@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../controllers/settings_controller.dart';
 import '../models/app_settings.dart';
-import '../utils/currency.dart';
 
 class PricingSettingsScreen extends StatefulWidget {
   final SettingsController controller;

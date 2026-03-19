@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:poultry_profit_calculator/utils/currency.dart';
 
 import '../controllers/input_controllers.dart';
 import '../controllers/profit_controller.dart';
@@ -30,7 +29,7 @@ class ProfitCalculatorScreen extends StatefulWidget {
 }
 
 class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen> {
-  final _formKey = GlobalKey<FormState>();
+  // final _formKey = GlobalKey<FormState>();
   final inputs = InputControllers();
 
   bool showOtherCosts = false;
@@ -40,6 +39,8 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen> {
   double eggIncome = 0;
   double feedCost = 0;
   double fixedCostPerDay = 0;
+
+  int? _expandedIndex;
 
   @override
   void initState() {
@@ -120,6 +121,7 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen> {
       eggsProduced:
           (_parse(inputs.crates.text) * 30 + _parse(inputs.eggPieces.text))
               .toInt(),
+      feedEatenKg: _parse(inputs.feedEaten.text), // ✅ save this
     );
 
     await widget.profitController.addRecord(record);
@@ -262,13 +264,26 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen> {
             if (records.isEmpty)
               const Center(child: Text('No records yet'))
             else
-              ...records.take(5).map(
-                    (r) => SavedProfitCardExpandable(
-                      record: r,
-                      profitController: widget.profitController,
-                      onDeleted: () => setState(() {}),
-                    ),
-                  ),
+              ...records.take(5).toList().asMap().entries.map((entry) {
+                final index = entry.key;
+                final r = entry.value;
+
+                return SavedProfitCardExpandable(
+                  record: r,
+                  profitController: widget.profitController,
+                  isExpanded: _expandedIndex == index,
+                  onTap: () {
+                    setState(() {
+                      _expandedIndex = _expandedIndex == index ? null : index;
+                    });
+                  },
+                  onDeleted: () {
+                    setState(() {
+                      _expandedIndex = null;
+                    });
+                  },
+                );
+              }),
             // TextButton(
             //   onPressed: () => Navigator.push(
             //     context,

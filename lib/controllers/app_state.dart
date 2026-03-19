@@ -7,11 +7,17 @@ class AppState {
   double totalVariableCost = 0.0;
   double fixedCostPerDay = 0.0;
   double eggsProduced = 0;
+  double feedEatenKg = 0.0;
 
   final List<ProfitRecord> history = [];
 
   void save(
-      double profit, double eggIncome, double feedCost, double fixedCost) {
+    double profit,
+    double eggIncome,
+    double feedCost,
+    double fixedCost,
+    double feedEatenKg,
+  ) {
     final rec = ProfitRecord(
       date: DateTime.now(),
       profit: profit,
@@ -19,6 +25,7 @@ class AppState {
       feedCost: feedCost,
       fixedCostPerDay: fixedCost,
       eggsProduced: eggsProduced.toInt(),
+      feedEatenKg: feedEatenKg,
     );
     history.insert(0, rec);
   }

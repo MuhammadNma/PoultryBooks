@@ -30,6 +30,8 @@ class _DashboardScreenState extends State<DashboardScreen>
     with SingleTickerProviderStateMixin {
   late final AnimationController _animController;
 
+  int? _expandedIndex;
+
   @override
   void initState() {
     super.initState();
@@ -58,13 +60,13 @@ class _DashboardScreenState extends State<DashboardScreen>
 
     final greeting = _greeting();
     final farmName =
-        widget.settingsController.settings.farmName?.isNotEmpty == true
-            ? widget.settingsController.settings.farmName!
+        widget.settingsController.settings.farmName.isNotEmpty == true
+            ? widget.settingsController.settings.farmName
             : 'Your Farm';
 
     /// ---------------- DASHBOARD RIBBON ----------------
-    final totalIncomeFromSales = widget.transactionController.txBox.values
-        .fold<double>(0.0, (sum, tx) => sum + tx.amountPaid);
+    // final totalIncomeFromSales = widget.transactionController.txBox.values
+    //     .fold<double>(0.0, (sum, tx) => sum + tx.amountPaid);
 
     const int eggsPerCrate = 30;
     final totalEggsSold = widget.transactionController.txBox.values.fold<int>(
@@ -239,13 +241,26 @@ class _DashboardScreenState extends State<DashboardScreen>
                 ),
               )
             else
-              ...recentRecords.map(
-                (record) => SavedProfitCardExpandable(
+              ...recentRecords.asMap().entries.map((entry) {
+                final index = entry.key;
+                final record = entry.value;
+
+                return SavedProfitCardExpandable(
                   record: record,
                   profitController: widget.profitController,
-                  onDeleted: () => setState(() {}),
-                ),
-              ),
+                  isExpanded: _expandedIndex == index,
+                  onTap: () {
+                    setState(() {
+                      _expandedIndex = _expandedIndex == index ? null : index;
+                    });
+                  },
+                  onDeleted: () {
+                    setState(() {
+                      _expandedIndex = null;
+                    });
+                  },
+                );
+              }),
           ],
         ),
       ),

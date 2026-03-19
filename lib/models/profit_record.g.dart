@@ -24,6 +24,7 @@ class ProfitRecordAdapter extends TypeAdapter<ProfitRecord> {
       fixedCostPerDay: fields[4] as double,
       eggsProduced: fields[5] as int?,
       synced: fields[6] as bool?,
+      feedEatenKg: fields[7] as double,
     );
   }
 

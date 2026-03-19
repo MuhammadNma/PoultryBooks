@@ -160,7 +160,6 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../controllers/settings_controller.dart';
-import '../../models/app_settings.dart';
 
 class SignupScreen extends StatefulWidget {
   final SettingsController settingsController;
