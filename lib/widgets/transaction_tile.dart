@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:poultry_profit_calculator/models/customer_transaction.dart';
+import 'package:poultry_books/models/customer_transaction.dart';
 // import '../../utils/currency.dart';
 
 class TransactionTile extends StatelessWidget {

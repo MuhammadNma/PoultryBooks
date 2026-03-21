@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart';
-import 'package:poultry_profit_calculator/controllers/settings_controller.dart';
+import 'package:poultry_books/controllers/settings_controller.dart';
 import '../controllers/profit_controller.dart';
 import '../widgets/saved_profit_card_expandable.dart';
 import 'profit_calculator_screen.dart';

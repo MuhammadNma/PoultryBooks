@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:poultry_profit_calculator/main.dart';
-import 'package:poultry_profit_calculator/controllers/transaction_controller.dart';
+import 'package:poultry_books/main.dart';
+import 'package:poultry_books/controllers/transaction_controller.dart';
 
 void main() {
   testWidgets('App loads without errors', (WidgetTester tester) async {

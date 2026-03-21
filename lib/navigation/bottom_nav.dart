@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:poultry_profit_calculator/screens/settings_screen.dart';
+import 'package:poultry_books/screens/settings_screen.dart';
 
 import '../controllers/transaction_controller.dart';
 import '../controllers/profit_controller.dart';
