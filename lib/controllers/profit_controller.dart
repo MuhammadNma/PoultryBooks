@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
 import '../models/profit_record.dart';
 
@@ -21,7 +22,8 @@ class ProfitController {
 
   /// 🔒 Safety guard
   void _ensureInitialized() {
-    if (_box == null) {
+    if (_box == null || !_box!.isOpen) {
+      debugPrint('⚠️ ProfitController used before initialization');
       throw Exception(
         'ProfitController not initialized. '
         'Call initForUser(userId) after login.',
@@ -32,13 +34,12 @@ class ProfitController {
   /// ---------------- GETTERS ----------------
 
   List<ProfitRecord> get records {
-    _ensureInitialized();
+    if (_box == null || !_box!.isOpen) return [];
     return _box!.values.toList().reversed.toList();
   }
 
   ProfitRecord? get lastRecord {
-    _ensureInitialized();
-    if (_box!.isEmpty) return null;
+    if (_box == null || !_box!.isOpen || _box!.isEmpty) return null;
     return records.first;
   }
 

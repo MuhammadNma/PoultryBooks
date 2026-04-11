@@ -177,7 +177,6 @@ class _DashboardChartsState extends State<DashboardCharts> {
           title: title,
           values: values,
           xLabels: labels,
-          color: color,
           showNaira: showNaira,
           yAxisTitle: yAxisTitle,
         ),

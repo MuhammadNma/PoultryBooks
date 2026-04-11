@@ -128,11 +128,20 @@
 import 'package:flutter/material.dart';
 import '../auth/auth_gate.dart';
 import '../controllers/transaction_controller.dart';
+import '../controllers/profit_controller.dart';
+import '../controllers/settings_controller.dart';
 
 class SplashScreen extends StatefulWidget {
   final TransactionController txController;
+  final ProfitController profitController;
+  final SettingsController settingsController;
 
-  const SplashScreen({super.key, required this.txController});
+  const SplashScreen({
+    super.key,
+    required this.txController,
+    required this.profitController,
+    required this.settingsController,
+  });
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
@@ -158,7 +167,6 @@ class _SplashScreenState extends State<SplashScreen>
     );
 
     _controller.forward();
-
     _goNext();
   }
 
@@ -170,7 +178,11 @@ class _SplashScreenState extends State<SplashScreen>
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
-        builder: (_) => AuthGate(txController: widget.txController),
+        builder: (_) => AuthGate(
+          txController: widget.txController,
+          profitController: widget.profitController,
+          settingsController: widget.settingsController,
+        ),
       ),
     );
   }
@@ -191,32 +203,15 @@ class _SplashScreenState extends State<SplashScreen>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              /// ICON
-              Container(
-                width: 110,
-                height: 110,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      blurRadius: 10,
-                      color: Colors.black.withOpacity(0.25),
-                      offset: const Offset(0, 6),
-                    )
-                  ],
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(24),
-                  child: Image.asset(
-                    'assets/icon.png',
-                    fit: BoxFit.cover,
-                  ),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(24),
+                child: Image.asset(
+                  'assets/icon.png',
+                  width: 110,
+                  height: 110,
                 ),
               ),
-
               const SizedBox(height: 24),
-
-              /// TITLE
               const Text(
                 'Poultry Books',
                 style: TextStyle(
@@ -225,16 +220,10 @@ class _SplashScreenState extends State<SplashScreen>
                   fontWeight: FontWeight.bold,
                 ),
               ),
-
               const SizedBox(height: 6),
-
-              /// TAGLINE
               const Text(
                 'Track • Analyze • Grow',
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 14,
-                ),
+                style: TextStyle(color: Colors.white70),
               ),
             ],
           ),

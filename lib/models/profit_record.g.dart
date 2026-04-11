@@ -31,7 +31,7 @@ class ProfitRecordAdapter extends TypeAdapter<ProfitRecord> {
   @override
   void write(BinaryWriter writer, ProfitRecord obj) {
     writer
-      ..writeByte(7)
+      ..writeByte(8)
       ..writeByte(0)
       ..write(obj.date)
       ..writeByte(1)
@@ -45,7 +45,9 @@ class ProfitRecordAdapter extends TypeAdapter<ProfitRecord> {
       ..writeByte(5)
       ..write(obj.eggsProduced)
       ..writeByte(6)
-      ..write(obj.synced);
+      ..write(obj.synced)
+      ..writeByte(7)
+      ..write(obj.feedEatenKg);
   }
 
   @override

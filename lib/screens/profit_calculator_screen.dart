@@ -143,7 +143,12 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen> {
       ..sort((a, b) => b.date.compareTo(a.date));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Profit Calculator')),
+      appBar: AppBar(
+        title: const Text(
+          'Daily Profit Calculator',
+          style: TextStyle(fontWeight: FontWeight.w600),
+        ),
+      ),
       body: RefreshIndicator(
         onRefresh: () async {
           await widget.settingsController.init();

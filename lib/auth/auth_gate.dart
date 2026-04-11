@@ -17,55 +17,47 @@
 
 //   @override
 //   Widget build(BuildContext context) {
-//     final settingsController = SettingsController();
-
-//     return FutureBuilder(
-//       future: settingsController.init(),
-//       builder: (context, settingsSnap) {
-//         if (settingsSnap.connectionState != ConnectionState.done) {
+//     return StreamBuilder<User?>(
+//       stream: FirebaseAuth.instance.authStateChanges(),
+//       builder: (context, snapshot) {
+//         // 🔄 Waiting for auth state
+//         if (snapshot.connectionState == ConnectionState.waiting) {
 //           return const Scaffold(
 //             body: Center(child: CircularProgressIndicator()),
 //           );
 //         }
 
-//         return StreamBuilder<User?>(
-//           stream: FirebaseAuth.instance.authStateChanges(),
-//           builder: (context, snapshot) {
-//             // Loading auth state
-//             if (snapshot.connectionState == ConnectionState.waiting) {
+//         // ❌ Not logged in
+//         if (!snapshot.hasData) {
+//           final settingsController = SettingsController();
+//           return LoginScreen(
+//             settingsController: settingsController,
+//           );
+//         }
+
+//         // ✅ Logged in
+//         final user = snapshot.data!;
+//         final profitController = ProfitController();
+//         final settingsController = SettingsController();
+
+//         return FutureBuilder(
+//           future: Future.wait([
+//             profitController.initForUser(user.uid),
+//             txController.initForUser(user.uid),
+//             settingsController.initForUser(user.uid),
+//           ]),
+//           builder: (context, initSnap) {
+//             if (initSnap.connectionState != ConnectionState.done) {
 //               return const Scaffold(
 //                 body: Center(child: CircularProgressIndicator()),
 //               );
 //             }
 
-//             // ✅ LOGGED IN
-//             if (snapshot.hasData) {
-//               final user = snapshot.data!;
-//               final profitController = ProfitController();
-//               final transactionController = TransactionController();
-
-//               return FutureBuilder(
-//                 future: profitController.initForUser(user.uid),
-//                 builder: (context, initSnap) {
-//                   if (initSnap.connectionState != ConnectionState.done) {
-//                     return const Scaffold(
-//                       body: Center(child: CircularProgressIndicator()),
-//                     );
-//                   }
-
-//                   return BottomNavScreen(
-//                     txController: txController,
-//                     profitController: profitController,
-//                     settingsController: settingsController,
-//                     transactionController: transactionController,
-//                   );
-//                 },
-//               );
-//             }
-
-//             // ❌ LOGGED OUT
-//             return LoginScreen(
+//             return BottomNavScreen(
+//               txController: txController,
+//               profitController: profitController,
 //               settingsController: settingsController,
+//               transactionController: txController,
 //             );
 //           },
 //         );
@@ -85,10 +77,14 @@ import '../controllers/settings_controller.dart';
 
 class AuthGate extends StatelessWidget {
   final TransactionController txController;
+  final ProfitController profitController;
+  final SettingsController settingsController;
 
   const AuthGate({
     super.key,
     required this.txController,
+    required this.profitController,
+    required this.settingsController,
   });
 
   @override
@@ -96,25 +92,22 @@ class AuthGate extends StatelessWidget {
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
-        // 🔄 Waiting for auth state
+        /// ⏳ Loading
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
             body: Center(child: CircularProgressIndicator()),
           );
         }
 
-        // ❌ Not logged in
+        /// ❌ Not logged in
         if (!snapshot.hasData) {
-          final settingsController = SettingsController();
           return LoginScreen(
             settingsController: settingsController,
           );
         }
 
-        // ✅ Logged in
+        /// ✅ Logged in
         final user = snapshot.data!;
-        final profitController = ProfitController();
-        final settingsController = SettingsController();
 
         return FutureBuilder(
           future: Future.wait([
@@ -122,13 +115,24 @@ class AuthGate extends StatelessWidget {
             txController.initForUser(user.uid),
             settingsController.initForUser(user.uid),
           ]),
-          builder: (context, initSnap) {
-            if (initSnap.connectionState != ConnectionState.done) {
+          builder: (context, snap) {
+            /// ⛔ VERY IMPORTANT
+            if (snap.connectionState != ConnectionState.done) {
               return const Scaffold(
                 body: Center(child: CircularProgressIndicator()),
               );
             }
 
+            /// ⛔ ALSO HANDLE ERRORS (prevents silent crashes)
+            if (snap.hasError) {
+              return Scaffold(
+                body: Center(
+                  child: Text('Initialization error: ${snap.error}'),
+                ),
+              );
+            }
+
+            /// ✅ ONLY NOW UI CAN LOAD
             return BottomNavScreen(
               txController: txController,
               profitController: profitController,

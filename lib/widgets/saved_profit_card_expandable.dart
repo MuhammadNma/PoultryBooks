@@ -129,8 +129,10 @@ class SavedProfitCardExpandable extends StatelessWidget {
                   children: [
                     const Divider(height: 20),
                     _row("Eggs Laid", "${record.eggsProduced}"),
-                    _row("Feed Eaten",
-                        "${record.feedEatenKg.toStringAsFixed(1)} kg"), // ✅ new
+                    _row(
+                      "Feed Eaten",
+                      "${(record.feedEatenKg ?? 0).toStringAsFixed(1)} kg",
+                    ), // ✅ new
                     _row("Egg Income", currency.format(record.eggIncome)),
                     _row("Feed Cost", currency.format(record.feedCost)),
                     _row("Fixed Cost", currency.format(record.fixedCostPerDay)),

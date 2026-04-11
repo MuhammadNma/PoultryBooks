@@ -67,37 +67,50 @@ import 'models/customer_transaction.dart';
 import 'models/profit_record.dart';
 
 import 'controllers/transaction_controller.dart';
-import 'screens/splash_screen.dart'; // ✅ ADD THIS
+import 'controllers/profit_controller.dart';
+import 'controllers/settings_controller.dart';
+
+import 'screens/splash_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Firebase
   await Firebase.initializeApp();
-
-  // Hive
   await Hive.initFlutter();
 
-  // Register adapters
   Hive.registerAdapter(CustomerAdapter());
   Hive.registerAdapter(CustomerTransactionAdapter());
   Hive.registerAdapter(ProfitRecordAdapter());
 
-  // Open boxes
   await Hive.openBox<Customer>('customers');
   await Hive.openBox<CustomerTransaction>('transactions');
   await Hive.openBox<ProfitRecord>('profit_records');
 
-  // Controller
+  /// ✅ CREATE ONLY ONCE
   final txController = TransactionController();
+  final profitController = ProfitController();
+  final settingsController = SettingsController();
 
-  runApp(PoultryProfitApp(txController: txController));
+  runApp(
+    PoultryProfitApp(
+      txController: txController,
+      profitController: profitController,
+      settingsController: settingsController,
+    ),
+  );
 }
 
 class PoultryProfitApp extends StatelessWidget {
   final TransactionController txController;
+  final ProfitController profitController;
+  final SettingsController settingsController;
 
-  const PoultryProfitApp({super.key, required this.txController});
+  const PoultryProfitApp({
+    super.key,
+    required this.txController,
+    required this.profitController,
+    required this.settingsController,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -105,7 +118,11 @@ class PoultryProfitApp extends StatelessWidget {
       title: 'Poultry Books',
       theme: AppTheme.light(),
       debugShowCheckedModeBanner: false,
-      home: SplashScreen(txController: txController),
+      home: SplashScreen(
+        txController: txController,
+        profitController: profitController,
+        settingsController: settingsController,
+      ),
     );
   }
 }
