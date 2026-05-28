@@ -36,13 +36,12 @@ class _DailyLogScreenState extends State<DailyLogScreen> {
   @override
   Widget build(BuildContext context) {
     final flocks = context.watch<FlockProvider>().active;
-    final logs = context.watch<DailyLogProvider>();
     final isToday = isSameDay(_selectedDate, DateTime.now());
 
     return Scaffold(
       appBar: AppBar(title: const Text('Daily Egg Log')),
       body: Column(children: [
-        // Date picker bar
+        // Date picker
         Padding(
           padding: const EdgeInsets.all(16),
           child: InkWell(
@@ -60,11 +59,12 @@ class _DailyLogScreenState extends State<DailyLogScreen> {
                     color: AppTheme.primary, size: 20),
                 const SizedBox(width: 12),
                 Text(
-                    isToday
-                        ? 'Today — ${formatDate(_selectedDate)}'
-                        : formatDate(_selectedDate),
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w600, fontSize: 15)),
+                  isToday
+                      ? 'Today — ${formatDate(_selectedDate)}'
+                      : formatDate(_selectedDate),
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w600, fontSize: 15),
+                ),
                 const Spacer(),
                 Text('Change',
                     style: TextStyle(
@@ -85,26 +85,46 @@ class _DailyLogScreenState extends State<DailyLogScreen> {
                   itemCount: flocks.length,
                   itemBuilder: (_, i) {
                     final flock = flocks[i];
-                    final log = logs.getForDate(_selectedDate, flock.id);
+                    final log = context
+                        .watch<DailyLogProvider>()
+                        .getForDate(_selectedDate, flock.id);
                     return _FlockLogCard(
                       flock: flock,
                       log: log,
                       date: _selectedDate,
                       onSave: (eggs, mortality, notes) async {
+                        final logProvider = context.read<DailyLogProvider>();
+                        final flockProvider = context.read<FlockProvider>();
+
                         if (log != null) {
+                          // Calculate the DIFFERENCE in mortality
+                          // to avoid double-counting
+                          final previousMortality = log.mortality;
+                          final mortalityDiff = mortality - previousMortality;
+
                           log.eggsCollected = eggs;
                           log.mortality = mortality;
                           log.notes = notes;
                           log.synced = false;
-                          await logs.update(log);
-                          // Update flock mortality total
-                          if (mortality > 0) {
-                            await context
-                                .read<FlockProvider>()
-                                .addMortality(flock.id, mortality);
+                          await logProvider.update(log);
+
+                          // Only add the difference to flock count
+                          if (mortalityDiff > 0) {
+                            await flockProvider.addMortality(
+                                flock.id, mortalityDiff);
+                          } else if (mortalityDiff < 0) {
+                            // Mortality was reduced — subtract from flock
+                            final f = flockProvider.getById(flock.id);
+                            if (f != null) {
+                              f.mortalityCount =
+                                  (f.mortalityCount + mortalityDiff)
+                                      .clamp(0, f.numberOfBirds);
+                              await flockProvider.update(f);
+                            }
                           }
                         } else {
-                          await logs.add(DailyLog(
+                          // New log — add full mortality count
+                          await logProvider.add(DailyLog(
                             id: const Uuid().v4(),
                             date: _selectedDate,
                             flockId: flock.id,
@@ -113,13 +133,30 @@ class _DailyLogScreenState extends State<DailyLogScreen> {
                             notes: notes,
                           ));
                           if (mortality > 0) {
-                            await context
-                                .read<FlockProvider>()
-                                .addMortality(flock.id, mortality);
+                            await flockProvider.addMortality(
+                                flock.id, mortality);
                           }
                         }
                       },
-                      onDelete: log == null ? null : () => logs.delete(log),
+                      onDelete: log == null
+                          ? null
+                          : () async {
+                              // Reverse the mortality when deleting a log
+                              if (log.mortality > 0) {
+                                final f = context
+                                    .read<FlockProvider>()
+                                    .getById(flock.id);
+                                if (f != null) {
+                                  f.mortalityCount =
+                                      (f.mortalityCount - log.mortality)
+                                          .clamp(0, f.numberOfBirds);
+                                  await context.read<FlockProvider>().update(f);
+                                }
+                              }
+                              await context
+                                  .read<DailyLogProvider>()
+                                  .delete(log);
+                            },
                     );
                   },
                 ),
@@ -134,7 +171,7 @@ class _FlockLogCard extends StatefulWidget {
   final DailyLog? log;
   final DateTime date;
   final Future<void> Function(int eggs, int mortality, String? notes) onSave;
-  final VoidCallback? onDelete;
+  final Future<void> Function()? onDelete;
 
   const _FlockLogCard({
     required this.flock,
@@ -179,13 +216,19 @@ class _FlockLogCardState extends State<_FlockLogCard> {
     final eggs = int.tryParse(_eggsCtrl.text) ?? 0;
     final mortality = int.tryParse(_mortalityCtrl.text) ?? 0;
     setState(() => _saving = true);
-    await widget.onSave(eggs, mortality,
-        _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim());
-    if (mounted) setState(() => _saving = false);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-          content: Text('${widget.flock.name} logged — ${formatEggs(eggs)}')),
+    await widget.onSave(
+      eggs,
+      mortality,
+      _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
     );
+    if (mounted) {
+      setState(() {
+        _saving = false;
+        _expanded = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('${widget.flock.name} — ${formatEggs(eggs)} logged')));
+    }
   }
 
   @override
@@ -198,116 +241,126 @@ class _FlockLogCardState extends State<_FlockLogCard> {
       margin: const EdgeInsets.only(bottom: 12),
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          // Header
-          Row(children: [
-            CircleAvatar(
-              radius: 20,
-              backgroundColor: hasLog
-                  ? AppTheme.primary.withOpacity(0.1)
-                  : Colors.grey.shade100,
-              child: Icon(hasLog ? Icons.check : Icons.egg_outlined,
-                  color: hasLog ? AppTheme.primary : Colors.grey.shade400,
-                  size: 18),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-                child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                  Text(widget.flock.name,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.bold, fontSize: 15)),
-                  Text('${widget.flock.activeBirds} active birds',
-                      style:
-                          TextStyle(fontSize: 12, color: Colors.grey.shade500)),
-                ])),
-            if (hasLog) ...[
-              Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                Text(formatEggs(eggs),
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold, color: AppTheme.primary)),
-                if (mortality > 0)
-                  Text('$mortality died',
-                      style:
-                          TextStyle(fontSize: 11, color: Colors.red.shade400)),
-              ]),
-              const SizedBox(width: 8),
-            ],
-            IconButton(
-              icon: Icon(_expanded ? Icons.expand_less : Icons.edit_outlined,
-                  size: 20),
-              onPressed: () => setState(() => _expanded = !_expanded),
-            ),
-          ]),
-
-          // Input form
-          if (_expanded) ...[
-            const SizedBox(height: 16),
-            const Divider(),
-            const SizedBox(height: 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
             Row(children: [
-              Expanded(
-                  child: TextField(
-                controller: _eggsCtrl,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Eggs Collected',
-                  prefixIcon: Icon(Icons.egg_outlined),
-                  hintText: '0',
-                ),
-              )),
+              CircleAvatar(
+                radius: 20,
+                backgroundColor: hasLog
+                    ? AppTheme.primary.withOpacity(0.1)
+                    : Colors.grey.shade100,
+                child: Icon(hasLog ? Icons.check : Icons.egg_outlined,
+                    color: hasLog ? AppTheme.primary : Colors.grey.shade400,
+                    size: 18),
+              ),
               const SizedBox(width: 12),
               Expanded(
-                  child: TextField(
-                controller: _mortalityCtrl,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Deaths Today',
-                  prefixIcon: Icon(Icons.remove_circle_outline),
-                  hintText: '0',
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(widget.flock.name,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 15)),
+                    Text('${widget.flock.activeBirds} active birds',
+                        style: TextStyle(
+                            fontSize: 12, color: Colors.grey.shade500)),
+                  ],
                 ),
-              )),
-            ]),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _notesCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Notes (optional)',
-                prefixIcon: Icon(Icons.note_outlined),
-                hintText: 'e.g. vaccinated today',
               ),
-            ),
-            const SizedBox(height: 16),
-            Row(children: [
-              if (hasLog && widget.onDelete != null)
-                Expanded(
-                    child: OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.red,
-                      side: const BorderSide(color: Colors.red)),
-                  onPressed: () {
-                    widget.onDelete!();
-                    setState(() => _expanded = false);
-                  },
-                  icon: const Icon(Icons.delete_outline, size: 18),
-                  label: const Text('Delete'),
-                )),
-              if (hasLog && widget.onDelete != null) const SizedBox(width: 10),
-              Expanded(
-                  child: ElevatedButton(
-                onPressed: _saving ? null : _save,
-                child: _saving
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white))
-                    : Text(hasLog ? 'Update' : 'Save'),
-              )),
+              if (hasLog) ...[
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(formatEggs(eggs),
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.primary)),
+                    if (mortality > 0)
+                      Text('$mortality died',
+                          style: TextStyle(
+                              fontSize: 11, color: Colors.red.shade400)),
+                  ],
+                ),
+                const SizedBox(width: 4),
+              ],
+              IconButton(
+                icon: Icon(_expanded ? Icons.expand_less : Icons.edit_outlined,
+                    size: 20),
+                onPressed: () => setState(() => _expanded = !_expanded),
+              ),
             ]),
+            if (_expanded) ...[
+              const SizedBox(height: 16),
+              const Divider(),
+              const SizedBox(height: 12),
+              Row(children: [
+                Expanded(
+                  child: TextField(
+                    controller: _eggsCtrl,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                        labelText: 'Eggs Collected',
+                        prefixIcon: Icon(Icons.egg_outlined),
+                        hintText: '0'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextField(
+                    controller: _mortalityCtrl,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                        labelText: 'Deaths Today',
+                        prefixIcon: Icon(Icons.remove_circle_outline),
+                        hintText: '0'),
+                  ),
+                ),
+              ]),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _notesCtrl,
+                decoration: const InputDecoration(
+                    labelText: 'Notes (optional)',
+                    prefixIcon: Icon(Icons.note_outlined),
+                    hintText: 'e.g. vaccinated today'),
+              ),
+              const SizedBox(height: 16),
+              Row(children: [
+                if (hasLog && widget.onDelete != null) ...[
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.red,
+                          side: const BorderSide(color: Colors.red)),
+                      onPressed: () async {
+                        await widget.onDelete!();
+                        if (mounted) {
+                          setState(() => _expanded = false);
+                        }
+                      },
+                      icon: const Icon(Icons.delete_outline, size: 18),
+                      label: const Text('Delete'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                ],
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: _saving ? null : _save,
+                    child: _saving
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white))
+                        : Text(hasLog ? 'Update' : 'Save'),
+                  ),
+                ),
+              ]),
+            ],
           ],
-        ]),
+        ),
       ),
     );
   }
@@ -319,17 +372,20 @@ class _NoFlocks extends StatelessWidget {
   Widget build(BuildContext context) => Center(
         child: Padding(
           padding: const EdgeInsets.all(40),
-          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Icon(Icons.groups_outlined, size: 72, color: Colors.grey.shade300),
-            const SizedBox(height: 16),
-            const Text('No active flocks',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Text(
-                'Add a flock first, then come back to log daily egg collection.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey.shade500)),
-          ]),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.groups_outlined,
+                  size: 72, color: Colors.grey.shade300),
+              const SizedBox(height: 16),
+              const Text('No active flocks',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Text('Add a flock first from Dashboard → Quick Access → Flocks.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey.shade500)),
+            ],
+          ),
         ),
       );
 }

@@ -67,34 +67,24 @@ class SyncProvider extends ChangeNotifier {
 
     try {
       // ---- PUSH ----
-
-      // Flocks
       for (final f in flocks.all) {
         await _col('flocks')?.doc(f.id).set(f.toJson());
       }
-
-      // Daily logs
       for (final l in logs.unsynced) {
         await _col('daily_logs')?.doc(l.id).set(l.toJson());
         l.synced = true;
         await l.save();
       }
-
-      // Sales
       for (final s in sales.unsynced) {
         await _col('sales')?.doc(s.id).set(s.toJson());
         s.synced = true;
         await s.save();
       }
-
-      // Expenses — push updates AND push deletions to Firestore
       for (final e in expenses.unsynced) {
         await _col('expenses')?.doc(e.id).set(e.toJson());
         e.synced = true;
         await e.save();
       }
-
-      // Customers
       for (final c in customers.unsynced) {
         await _col('customers')?.doc(c.id).set(c.toJson());
         c.synced = true;
@@ -111,29 +101,34 @@ class SyncProvider extends ChangeNotifier {
         }
       }
 
-      // Daily logs
+      // Daily logs — skip deleted
       final ls = await _col('daily_logs')?.get();
       for (final d in ls?.docs ?? []) {
-        final j = d.data() as Map<String, dynamic>;
-        if (logs.getForDate(DateTime.parse(j['date']), j['flockId']) == null) {
-          await logs.add(DailyLog.fromJson(j));
+        if (logs.isDeleted(d.id)) {
+          await _col('daily_logs')?.doc(d.id).delete();
+        } else {
+          final j = d.data() as Map<String, dynamic>;
+          if (logs.getForDate(DateTime.parse(j['date']), j['flockId']) ==
+              null) {
+            await logs.add(DailyLog.fromJson(j));
+          }
         }
       }
 
-      // Sales
+      // Sales — skip deleted
       final ss = await _col('sales')?.get();
       for (final d in ss?.docs ?? []) {
-        if (!sales.all.any((s) => s.id == d.id)) {
+        if (sales.isDeleted(d.id)) {
+          await _col('sales')?.doc(d.id).delete();
+        } else if (!sales.all.any((s) => s.id == d.id)) {
           await sales.add(Sale.fromJson(d.data() as Map<String, dynamic>));
         }
       }
 
-      // Expenses — skip any IDs that were deleted locally,
-      // and delete them from Firestore too
+      // Expenses — skip deleted
       final es = await _col('expenses')?.get();
       for (final d in es?.docs ?? []) {
         if (expenses.isDeleted(d.id)) {
-          // Delete from Firestore so it doesn't come back
           await _col('expenses')?.doc(d.id).delete();
         } else if (!expenses.all.any((e) => e.id == d.id)) {
           await expenses
