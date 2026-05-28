@@ -1,404 +1,455 @@
+// lib/screens/dashboard/dashboard_screen.dart
 import 'package:flutter/material.dart';
-import 'package:poultry_books/screens/dashboard/dashboard_charts.dart';
-import '../../controllers/profit_controller.dart';
-import '../../controllers/settings_controller.dart';
-import '../../controllers/transaction_controller.dart';
-import '../../widgets/result_card.dart';
-import '../../widgets/saved_profit_card_expandable.dart';
-import '../../utils/currency.dart';
-import '../calendar_profit_view.dart';
+import 'package:provider/provider.dart';
+import '../../providers/daily_log_provider.dart';
+import '../../providers/sale_provider.dart';
+import '../../providers/expense_provider.dart';
+import '../../providers/flock_provider.dart';
+import '../../providers/settings_provider.dart';
+import '../../core/app_theme.dart';
+import '../../utils/formatters.dart';
+import '../expenses/expenses_screen.dart';
+import '../reports/reports_screen.dart';
+import '../flocks/flocks_screen.dart';
+import '../sales/sales_screen.dart';
+import '../customers/customers_screen.dart';
+import '../main_shell.dart';
 
-class DashboardScreen extends StatefulWidget {
-  final ProfitController profitController;
-  final TransactionController transactionController;
-  final SettingsController settingsController;
-  final void Function(int tabIndex) goToTab;
-
-  const DashboardScreen({
-    super.key,
-    required this.profitController,
-    required this.transactionController,
-    required this.settingsController,
-    required this.goToTab,
-  });
-
-  @override
-  State<DashboardScreen> createState() => _DashboardScreenState();
-}
-
-class _DashboardScreenState extends State<DashboardScreen>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _animController;
-
-  int? _expandedIndex;
-
-  @override
-  void initState() {
-    super.initState();
-    _animController =
-        AnimationController(vsync: this, duration: const Duration(seconds: 1))
-          ..forward();
-  }
-
-  @override
-  void dispose() {
-    _animController.dispose();
-    super.dispose();
-  }
+class DashboardScreen extends StatelessWidget {
+  const DashboardScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final records = widget.profitController.records;
-
-    /// 🔥 SORT (ensures latest first always)
-    records.sort((a, b) => b.date.compareTo(a.date));
-
-    final recentRecords = records.take(5).toList();
-
-    /// ✅ SAFE TODAY RECORD CHECK (NO NULL ERROR)
     final now = DateTime.now();
+    final logs = context.watch<DailyLogProvider>();
+    final sales = context.watch<SaleProvider>();
+    final expenses = context.watch<ExpenseProvider>();
+    final flocks = context.watch<FlockProvider>();
+    final settings = context.watch<SettingsProvider>().settings;
 
-    final todayRecord = records.where((r) {
-      return r.date.year == now.year &&
-          r.date.month == now.month &&
-          r.date.day == now.day;
-    }).toList();
-
-    final hasTodayRecord = todayRecord.isNotEmpty;
-    final today = hasTodayRecord ? todayRecord.first : null;
-
-    final greeting = _greeting();
-    final farmName =
-        widget.settingsController.settings.farmName.isNotEmpty == true
-            ? widget.settingsController.settings.farmName
-            : 'Your Farm';
-
-    /// ---------------- DASHBOARD DATA ----------------
-    const int eggsPerCrate = 30;
-
-    final totalEggsSold = widget.transactionController.txBox.values.fold<int>(
-        0, (sum, tx) => sum + (tx.crates * eggsPerCrate) + tx.pieces);
-
-    final totalProfit = records.fold<double>(0.0, (sum, r) => sum + r.profit);
-
-    final totalEggsLaid =
-        records.fold<int>(0, (sum, r) => sum + r.eggsProduced);
-
-    final primary = Theme.of(context).primaryColor;
-    final accent = Theme.of(context).colorScheme.secondary;
+    final totalSold = sales.totalEggsSold();
+    final eggsOnHand = logs.totalEggsOnHand(totalSold);
+    final monthIncome = sales.totalIncomeForMonth(now.year, now.month);
+    final monthExpenses = expenses.totalForMonth(now.year, now.month);
+    final monthProfit = monthIncome - monthExpenses;
+    final totalOwing = sales.totalOwingAllCustomers;
+    final todayLogs = logs.all.where((l) => isSameDay(l.date, now)).toList();
+    final todayEggs = todayLogs.fold(0, (s, l) => s + l.eggsCollected);
+    final expCats = expenses.byCategory(now.year, now.month);
 
     return Scaffold(
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          padding: const EdgeInsets.all(16),
           children: [
-            /// ---------------- GREETING ----------------
-            FadeTransition(
-              opacity: _animController,
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [primary.withOpacity(0.8), primary],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: primary.withOpacity(0.3),
-                      offset: const Offset(0, 4),
-                      blurRadius: 12,
-                    ),
-                  ],
-                ),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      greeting,
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Welcome to $farmName Poultry Books',
-                      style:
-                          const TextStyle(fontSize: 14, color: Colors.white70),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+            // ---- Header ----
+            _Header(farmName: settings.farmName, now: now),
+            const SizedBox(height: 20),
 
-            const SizedBox(height: 24),
-
-            /// ---------------- SUMMARY ----------------
-            Row(
+            // ---- KPI Cards ----
+            GridView.count(
+              crossAxisCount: 2,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              mainAxisSpacing: 12,
+              crossAxisSpacing: 12,
+              childAspectRatio: 1.55,
               children: [
-                _summaryCard(
-                  label: 'Total Profit',
-                  value: formatMoney(totalProfit),
-                  color: Colors.green.shade400,
-                  icon: Icons.savings,
+                _KpiCard(
+                  label: 'Eggs on Hand',
+                  value: formatEggs(eggsOnHand),
+                  icon: Icons.inventory_2_outlined,
+                  color: Colors.orange.shade600,
                 ),
-                const SizedBox(width: 12),
-                _summaryCard(
-                  label: 'Eggs Sold',
-                  value: totalEggsSold.toString(),
-                  color: Colors.orange.shade400,
-                  icon: Icons.egg,
+                _KpiCard(
+                  label: 'Month Income',
+                  value: formatMoneyCompact(monthIncome),
+                  icon: Icons.trending_up,
+                  color: Colors.green.shade600,
                 ),
-                const SizedBox(width: 12),
-                _summaryCard(
-                  label: 'Eggs Laid',
-                  value: totalEggsLaid.toString(),
+                _KpiCard(
+                  label: 'Month Expenses',
+                  value: formatMoneyCompact(monthExpenses),
+                  icon: Icons.trending_down,
+                  color: Colors.red.shade400,
+                ),
+                _KpiCard(
+                  label: 'Month Profit',
+                  value: formatMoneyCompact(monthProfit),
+                  icon: Icons.account_balance,
+                  color: monthProfit >= 0 ? Colors.green.shade700 : Colors.red,
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+
+            // ---- Quick Access ----
+            const _SectionTitle('Quick Access'),
+            const SizedBox(height: 10),
+            GridView.count(
+              crossAxisCount: 4,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              mainAxisSpacing: 12,
+              crossAxisSpacing: 12,
+              childAspectRatio: 0.85,
+              children: [
+                _QuickAction(
+                  icon: Icons.receipt_long_outlined,
+                  label: 'Expenses',
+                  color: Colors.red.shade400,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const ExpensesScreen())),
+                ),
+                _QuickAction(
+                  icon: Icons.bar_chart_outlined,
+                  label: 'Reports',
                   color: Colors.purple.shade400,
-                  icon: Icons.egg_alt,
+                  onTap: () => Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => const ReportsScreen())),
+                ),
+                _QuickAction(
+                  icon: Icons.groups_outlined,
+                  label: 'Flocks',
+                  color: AppTheme.primary,
+                  onTap: () => Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => const FlocksScreen())),
+                ),
+                _QuickAction(
+                  icon: Icons.add_circle_outline,
+                  label: 'New Sale',
+                  color: Colors.blue.shade500,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const SaleFormScreen())),
+                ),
+                _QuickAction(
+                  icon: Icons.payments_outlined,
+                  label: 'Add Expense',
+                  color: Colors.orange.shade600,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const ExpenseFormScreen())),
+                ),
+                _QuickAction(
+                  icon: Icons.egg_alt_outlined,
+                  label: 'Log Eggs',
+                  color: Colors.teal.shade500,
+                  onTap: () {
+                    // Switch to Daily Log tab (index 1)
+                    final shell =
+                        context.findAncestorStateOfType<MainShellState>();
+                    shell?.switchTab(1);
+                  },
+                ),
+                _QuickAction(
+                  icon: Icons.person_add_alt_1_outlined,
+                  label: 'Add Customer',
+                  color: Colors.indigo.shade400,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const CustomerFormScreen())),
+                ),
+                _QuickAction(
+                  icon: Icons.sync_outlined,
+                  label: 'Sync Now',
+                  color: Colors.grey.shade600,
+                  onTap: () {
+                    final shell =
+                        context.findAncestorStateOfType<MainShellState>();
+                    shell?.triggerSync();
+                  },
                 ),
               ],
             ),
+            const SizedBox(height: 20),
 
-            const SizedBox(height: 24),
-
-            /// ---------------- TODAY OVERVIEW ----------------
-            _sectionHeader('Today Overview'),
-            const SizedBox(height: 12),
-
-            hasTodayRecord
-                ? ResultCard(
-                    profit: today!.profit,
-                    eggIncome: today.eggIncome,
-                    feedCost: today.feedCost,
-                    fixedCostPerDay: today.fixedCostPerDay,
-                  )
-                : _emptyToday(),
-
-            const SizedBox(height: 24),
-
-            /// ---------------- QUICK ACTIONS ----------------
-            _sectionHeader('Quick Actions'),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _actionCard(
-                    icon: Icons.calculate,
-                    label: 'Calculate Profit',
-                    color: accent,
-                    onTap: () async {
-                      widget.goToTab(1);
-
-                      /// 🔥 Refresh when user returns
-                      await Future.delayed(const Duration(milliseconds: 300));
-                      setState(() {});
-                    },
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _actionCard(
-                    icon: Icons.calendar_month,
-                    label: 'History',
-                    color: Colors.deepPurple.shade400,
-                    onTap: () => _openCalendar(context),
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 28),
-
-            /// ---------------- CHARTS ----------------
-            _sectionHeader('Weekly Performance'),
+            // ---- Today's Collection ----
+            const _SectionTitle("Today's Collection"),
             const SizedBox(height: 8),
             Card(
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16)),
-              elevation: 2,
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: DashboardCharts(controller: widget.profitController),
-              ),
-            ),
+                child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: todayLogs.isEmpty
+                  ? Row(children: [
+                      Icon(Icons.info_outline, color: Colors.grey.shade400),
+                      const SizedBox(width: 10),
+                      Text('No eggs logged today yet',
+                          style: TextStyle(color: Colors.grey.shade500)),
+                    ])
+                  : Column(children: [
+                      ...flocks.active.map((flock) {
+                        final eggs = todayLogs
+                            .where((l) => l.flockId == flock.id)
+                            .fold(0, (s, l) => s + l.eggsCollected);
+                        if (eggs == 0) return const SizedBox.shrink();
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(flock.name,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w500)),
+                              Text(formatEggs(eggs),
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w600)),
+                            ],
+                          ),
+                        );
+                      }),
+                      const Divider(height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Total today',
+                              style: TextStyle(
+                                  color: Colors.grey.shade600, fontSize: 13)),
+                          Text(formatEggs(todayEggs),
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.bold, fontSize: 13)),
+                        ],
+                      ),
+                    ]),
+            )),
+            const SizedBox(height: 16),
 
-            const SizedBox(height: 28),
+            // ---- Outstanding Payments ----
+            if (totalOwing > 0) ...[
+              const _SectionTitle('Outstanding Payments'),
+              const SizedBox(height: 8),
+              Card(
+                  child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Row(children: [
+                  Icon(Icons.warning_amber_rounded,
+                      color: Colors.orange.shade600),
+                  const SizedBox(width: 10),
+                  Expanded(
+                      child: Text('Customers owe you',
+                          style: TextStyle(color: Colors.grey.shade700))),
+                  Text(formatMoney(totalOwing),
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: Colors.red.shade600)),
+                ]),
+              )),
+              const SizedBox(height: 16),
+            ],
 
-            /// ---------------- RECENT RECORDS ----------------
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _sectionHeader('Recent Records'),
-                TextButton(
-                  onPressed: () => _openCalendar(context),
-                  child: const Text('View all'),
+            // ---- Month Expense Breakdown ----
+            if (expCats.isNotEmpty) ...[
+              _SectionTitle('${formatMonthYear(now)} Expenses'),
+              const SizedBox(height: 8),
+              Card(
+                  child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: expCats.entries
+                      .map((e) => Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(children: [
+                                  _categoryIcon(e.key),
+                                  const SizedBox(width: 8),
+                                  Text(e.key,
+                                      style: const TextStyle(fontSize: 13)),
+                                ]),
+                                Text(formatMoney(e.value),
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 13)),
+                              ],
+                            ),
+                          ))
+                      .toList(),
                 ),
-              ],
-            ),
+              )),
+              const SizedBox(height: 16),
+            ],
 
-            const SizedBox(height: 8),
+            // ---- Active Flocks ----
+            if (flocks.active.isNotEmpty) ...[
+              const _SectionTitle('Active Flocks'),
+              const SizedBox(height: 8),
+              ...flocks.active.map((f) => Card(
+                      child: ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: AppTheme.primary.withOpacity(0.1),
+                      child: const Icon(Icons.groups,
+                          color: AppTheme.primary, size: 20),
+                    ),
+                    title: Text(f.name,
+                        style: const TextStyle(fontWeight: FontWeight.w600)),
+                    subtitle: Text('${f.activeBirds} active birds'),
+                    trailing: f.mortalityCount > 0
+                        ? Text('${f.mortalityCount} lost',
+                            style: TextStyle(
+                                color: Colors.red.shade400, fontSize: 12))
+                        : null,
+                  ))),
+            ],
 
-            if (recentRecords.isEmpty)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 16),
-                child: Center(
-                  child: Text(
-                    'No profit records yet',
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                ),
-              )
-            else
-              ...recentRecords.asMap().entries.map((entry) {
-                final index = entry.key;
-                final record = entry.value;
-
-                return SavedProfitCardExpandable(
-                  record: record,
-                  profitController: widget.profitController,
-                  isExpanded: _expandedIndex == index,
-                  onTap: () {
-                    setState(() {
-                      _expandedIndex = _expandedIndex == index ? null : index;
-                    });
-                  },
-                  onDeleted: () {
-                    setState(() {
-                      _expandedIndex = null;
-                    });
-                  },
-                );
-              }),
+            const SizedBox(height: 80),
           ],
         ),
       ),
     );
   }
 
-  /// ---------------- EMPTY TODAY ----------------
-
-  Widget _emptyToday() {
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            Text(
-              'No profit recorded for today',
-              style: TextStyle(color: Colors.grey[600]),
-            ),
-            const SizedBox(height: 12),
-            ElevatedButton.icon(
-              onPressed: () async {
-                widget.goToTab(1);
-                await Future.delayed(const Duration(milliseconds: 300));
-                setState(() {});
-              },
-              icon: const Icon(Icons.calculate),
-              label: const Text('Calculate Today\'s Profit'),
-            ),
-          ],
-        ),
-      ),
-    );
+  Widget _categoryIcon(String cat) {
+    const icons = {
+      'Feed': Icons.grain,
+      'Medication': Icons.medication_outlined,
+      'Fuel': Icons.local_gas_station_outlined,
+      'Salary': Icons.people_outlined,
+      'Crates': Icons.inventory_outlined,
+      'Repairs': Icons.build_outlined,
+      'Other': Icons.more_horiz,
+    };
+    return Icon(icons[cat] ?? Icons.circle,
+        size: 16, color: Colors.grey.shade600);
   }
+}
 
-  /// ---------------- HELPERS ----------------
+// ---- Quick Action Widget ----
+class _QuickAction extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
 
-  String _greeting() {
-    final hour = DateTime.now().hour;
-    if (hour < 12) return 'Good morning';
-    if (hour < 17) return 'Good afternoon';
-    return 'Good evening';
-  }
+  const _QuickAction({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
 
-  Widget _sectionHeader(String text) {
-    return Text(
-      text,
-      style: TextStyle(
-        fontSize: 18,
-        fontWeight: FontWeight.bold,
-        color: Theme.of(context).primaryColorDark,
-      ),
-    );
-  }
-
-  Widget _summaryCard({
-    required String label,
-    required String value,
-    required Color color,
-    required IconData icon,
-  }) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [color.withOpacity(0.7), color],
-          ),
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, color: Colors.white),
-            const SizedBox(height: 6),
-            Text(value,
-                style: const TextStyle(
-                    color: Colors.white, fontWeight: FontWeight.bold)),
-            Text(label,
-                style: const TextStyle(color: Colors.white70, fontSize: 12)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _actionCard({
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-    required Color color,
-  }) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(16),
-      onTap: onTap,
-      child: Card(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+  @override
+  Widget build(BuildContext context) => InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 20),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            gradient: LinearGradient(
-              colors: [color.withOpacity(0.8), color],
-            ),
+            color: color.withOpacity(0.08),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: color.withOpacity(0.15)),
           ),
           child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, color: Colors.white),
+              Icon(icon, color: color, size: 26),
               const SizedBox(height: 6),
-              Text(label, style: const TextStyle(color: Colors.white)),
+              Text(label,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      fontSize: 11, fontWeight: FontWeight.w600, color: color)),
             ],
           ),
         ),
-      ),
-    );
-  }
+      );
+}
 
-  void _openCalendar(BuildContext context) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => CalendarProfitView(
-          controller: widget.profitController,
-          settingsController: widget.settingsController,
-        ),
+// ---- Supporting Widgets ----
+class _Header extends StatelessWidget {
+  final String farmName;
+  final DateTime now;
+  const _Header({required this.farmName, required this.now});
+
+  @override
+  Widget build(BuildContext context) {
+    final h = now.hour;
+    final greeting = h < 12
+        ? 'Good morning'
+        : h < 17
+            ? 'Good afternoon'
+            : 'Good evening';
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient:
+            const LinearGradient(colors: [AppTheme.primary, AppTheme.light]),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+              color: AppTheme.primary.withOpacity(0.3),
+              blurRadius: 12,
+              offset: const Offset(0, 4))
+        ],
       ),
+      child: Row(children: [
+        Expanded(
+            child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(greeting,
+                style: const TextStyle(color: Colors.white70, fontSize: 14)),
+            const SizedBox(height: 2),
+            Text(farmName,
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold)),
+            const SizedBox(height: 2),
+            Text(formatDate(now),
+                style: const TextStyle(color: Colors.white60, fontSize: 12)),
+          ],
+        )),
+        const Icon(Icons.agriculture, color: Colors.white38, size: 40),
+      ]),
     );
   }
+}
+
+class _KpiCard extends StatelessWidget {
+  final String label, value;
+  final IconData icon;
+  final Color color;
+  const _KpiCard({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withOpacity(0.15)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Icon(icon, color: color, size: 22),
+            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(value,
+                  style: TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 17, color: color)),
+              Text(label,
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+            ]),
+          ],
+        ),
+      );
+}
+
+class _SectionTitle extends StatelessWidget {
+  final String title;
+  const _SectionTitle(this.title);
+  @override
+  Widget build(BuildContext context) => Text(title,
+      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold));
 }
