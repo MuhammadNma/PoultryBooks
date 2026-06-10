@@ -11,12 +11,15 @@ class DailyLogProvider extends ChangeNotifier {
 
   List<DailyLog> get all {
     if (_box == null || !_box!.isOpen) return [];
-    return _box!.values.toList()..sort((a, b) => b.date.compareTo(a.date));
+    return _box!.values.toList()
+      ..sort((a, b) => b.date.compareTo(a.date));
   }
 
   Future<void> init(String uid) async {
-    _box = await Hive.openBox<DailyLog>('${AppConstants.dailyLogBox}$uid');
-    _deletedBox = await Hive.openBox('${AppConstants.dailyLogBox}deleted_$uid');
+    _box = await Hive.openBox<DailyLog>(
+        '${AppConstants.dailyLogBox}$uid');
+    _deletedBox = await Hive.openBox(
+        '${AppConstants.dailyLogBox}deleted_$uid');
     notifyListeners();
   }
 
@@ -40,24 +43,24 @@ class DailyLogProvider extends ChangeNotifier {
 
   DailyLog? getForDate(DateTime date, String flockId) {
     try {
-      return all
-          .firstWhere((l) => isSameDay(l.date, date) && l.flockId == flockId);
+      return all.firstWhere(
+          (l) => isSameDay(l.date, date) && l.flockId == flockId);
     } catch (_) {
       return null;
     }
   }
 
-  List<DailyLog> forMonth(int year, int month, {String? flockId}) => all
-      .where((l) =>
+  List<DailyLog> forMonth(int year, int month, {String? flockId}) =>
+      all.where((l) =>
           l.date.year == year &&
           l.date.month == month &&
-          (flockId == null || l.flockId == flockId))
-      .toList();
+          (flockId == null || l.flockId == flockId)).toList();
 
   int totalEggsOnHand(int totalSoldEggs) {
     final collected = all.fold(0, (s, l) => s + l.eggsCollected);
     return (collected - totalSoldEggs).clamp(0, 999999);
   }
 
-  List<DailyLog> get unsynced => all.where((l) => !l.synced).toList();
+  List<DailyLog> get unsynced =>
+      all.where((l) => !l.synced).toList();
 }

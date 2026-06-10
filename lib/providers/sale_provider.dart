@@ -10,12 +10,14 @@ class SaleProvider extends ChangeNotifier {
 
   List<Sale> get all {
     if (_box == null || !_box!.isOpen) return [];
-    return _box!.values.toList()..sort((a, b) => b.date.compareTo(a.date));
+    return _box!.values.toList()
+      ..sort((a, b) => b.date.compareTo(a.date));
   }
 
   Future<void> init(String uid) async {
     _box = await Hive.openBox<Sale>('${AppConstants.saleBox}$uid');
-    _deletedBox = await Hive.openBox('${AppConstants.saleBox}deleted_$uid');
+    _deletedBox = await Hive.openBox(
+        '${AppConstants.saleBox}deleted_$uid');
     notifyListeners();
   }
 
@@ -27,16 +29,17 @@ class SaleProvider extends ChangeNotifier {
   Future<void> update(Sale updated) async {
     final existing = _box!.get(updated.id);
     if (existing != null) {
-      existing.date = updated.date;
-      existing.customerId = updated.customerId;
-      existing.customerName = updated.customerName;
-      existing.crates = updated.crates;
-      existing.loosePieces = updated.loosePieces;
+      existing.date          = updated.date;
+      existing.customerId    = updated.customerId;
+      existing.customerName  = updated.customerName;
+      existing.crates        = updated.crates;
+      existing.loosePieces   = updated.loosePieces;
       existing.pricePerCrate = updated.pricePerCrate;
-      existing.amountPaid = updated.amountPaid;
-      existing.flockId = updated.flockId;
-      existing.notes = updated.notes;
-      existing.synced = false;
+      existing.amountPaid    = updated.amountPaid;
+      existing.flockId       = updated.flockId;
+      existing.notes         = updated.notes;
+      existing.isGift        = updated.isGift;
+      existing.synced        = false;
       await existing.save();
     } else {
       await _box!.put(updated.id, updated);
@@ -53,7 +56,8 @@ class SaleProvider extends ChangeNotifier {
   bool isDeleted(String id) => _deletedBox?.get(id) == true;
 
   List<Sale> forMonth(int year, int month) =>
-      all.where((s) => s.date.year == year && s.date.month == month).toList();
+      all.where((s) =>
+          s.date.year == year && s.date.month == month).toList();
 
   List<Sale> forCustomer(String customerId) =>
       all.where((s) => s.customerId == customerId).toList();

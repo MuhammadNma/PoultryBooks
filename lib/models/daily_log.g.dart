@@ -8,7 +8,9 @@ class DailyLogAdapter extends TypeAdapter<DailyLog> {
   @override
   DailyLog read(BinaryReader reader) {
     final n = reader.readByte();
-    final f = <int, dynamic>{for (int i = 0; i < n; i++) reader.readByte(): reader.read()};
+    final f = <int, dynamic>{
+      for (int i = 0; i < n; i++) reader.readByte(): reader.read()
+    };
     return DailyLog(
       id: f[0] as String,
       date: f[1] as DateTime,
@@ -16,7 +18,7 @@ class DailyLogAdapter extends TypeAdapter<DailyLog> {
       eggsCollected: (f[3] ?? 0) as int,
       mortality: (f[4] ?? 0) as int,
       notes: f[5] as String?,
-      synced: (f[6] ?? false) as bool,
+      synced: f[6] == null ? false : f[6] as bool,
     );
   }
 
@@ -33,6 +35,7 @@ class DailyLogAdapter extends TypeAdapter<DailyLog> {
       ..writeByte(6)..write(obj.synced);
   }
 
-  @override bool operator ==(Object o) => o is DailyLogAdapter && o.typeId == typeId;
+  @override bool operator ==(Object o) =>
+      o is DailyLogAdapter && o.typeId == typeId;
   @override int get hashCode => typeId.hashCode;
 }

@@ -26,6 +26,7 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
+  // Clear all old Hive data to prevent type cast errors from old adapters
   await _clearOldHiveData();
 
   await Hive.initFlutter();
@@ -38,20 +39,26 @@ Future<void> main() async {
   runApp(const PoultryBooksApp());
 }
 
+/// Deletes the entire Hive storage directory on first run after upgrade.
+/// Uses a version file to only do this once.
 Future<void> _clearOldHiveData() async {
   try {
     final dir = await getApplicationDocumentsDirectory();
     final versionFile = File('${dir.path}/pb_schema_version.txt');
     const currentVersion = '3';
 
+    // If version file exists and matches, skip clearing
     if (versionFile.existsSync()) {
       final version = versionFile.readAsStringSync().trim();
       if (version == currentVersion) return;
     }
 
+    // Version mismatch or first run — clear all Hive boxes
+    final hivePath = dir.path;
     final hiveFiles = dir
         .listSync()
-        .where((f) => f.path.endsWith('.hive') || f.path.endsWith('.lock'))
+        .where((f) =>
+            f.path.endsWith('.hive') || f.path.endsWith('.lock'))
         .toList();
 
     for (final file in hiveFiles) {
@@ -60,6 +67,7 @@ Future<void> _clearOldHiveData() async {
       } catch (_) {}
     }
 
+    // Write new version
     await versionFile.writeAsString(currentVersion);
   } catch (e) {
     debugPrint('Hive cleanup error: $e');

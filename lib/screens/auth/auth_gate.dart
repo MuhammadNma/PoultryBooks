@@ -20,15 +20,10 @@ class AuthGate extends StatelessWidget {
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snap) {
-        // Still waiting for Firebase to respond
         if (snap.connectionState == ConnectionState.waiting) {
           return const _Loading();
         }
-        // Not logged in — always show login first
-        if (!snap.hasData || snap.data == null) {
-          return const LoginScreen();
-        }
-        // Logged in — initialise providers then decide where to go
+        if (!snap.hasData) return const LoginScreen();
         return _InitApp(user: snap.data!);
       },
     );
@@ -77,38 +72,29 @@ class _InitAppState extends State<_InitApp> {
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(32),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.error_outline, size: 60, color: Colors.red),
-                const SizedBox(height: 16),
-                const Text('Something went wrong loading your data.',
-                    textAlign: TextAlign.center,
-                    style:
-                        TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
-                Text(_error!,
-                    textAlign: TextAlign.center,
-                    style:
-                        TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-                const SizedBox(height: 24),
-                ElevatedButton(
-                  onPressed: () {
-                    setState(() {
-                      _error = null;
-                      _done = false;
-                    });
-                    _init();
-                  },
-                  child: const Text('Try Again'),
-                ),
-                const SizedBox(height: 12),
-                TextButton(
-                  onPressed: () async => await FirebaseAuth.instance.signOut(),
-                  child: const Text('Sign Out'),
-                ),
-              ],
-            ),
+            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+              const Icon(Icons.error_outline, size: 60, color: Colors.red),
+              const SizedBox(height: 16),
+              const Text('Something went wrong loading your data.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Text(_error!, textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: () {
+                  setState(() { _error = null; _done = false; });
+                  _init();
+                },
+                child: const Text('Try Again'),
+              ),
+              const SizedBox(height: 12),
+              TextButton(
+                onPressed: () async => await FirebaseAuth.instance.signOut(),
+                child: const Text('Sign Out'),
+              ),
+            ]),
           ),
         ),
       );
@@ -116,7 +102,6 @@ class _InitAppState extends State<_InitApp> {
 
     if (!_done) return const _Loading();
 
-    // Only show onboarding if the user hasn't completed it yet
     final onboarded = context.watch<SettingsProvider>().onboardingComplete;
     return onboarded ? const MainShell() : const OnboardingScreen();
   }
@@ -126,15 +111,10 @@ class _Loading extends StatelessWidget {
   const _Loading();
   @override
   Widget build(BuildContext context) => const Scaffold(
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              CircularProgressIndicator(),
-              SizedBox(height: 16),
-              Text('Loading PoultryBooks…'),
-            ],
-          ),
-        ),
-      );
+    body: Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+      CircularProgressIndicator(),
+      SizedBox(height: 16),
+      Text('Loading PoultryBooks…'),
+    ])),
+  );
 }

@@ -15,22 +15,18 @@ class AppSettings {
   });
 
   Map<String, dynamic> toJson() => {
-        'farmName': farmName,
-        'defaultPricePerCrate': defaultPricePerCrate,
-        'onboardingComplete': onboardingComplete,
-      };
+    'farmName': farmName,
+    'defaultPricePerCrate': defaultPricePerCrate,
+    'onboardingComplete': onboardingComplete,
+  };
 
   factory AppSettings.fromJson(Map<String, dynamic> j) => AppSettings(
-        farmName: j['farmName'] ?? 'My Farm',
-        defaultPricePerCrate: (j['defaultPricePerCrate'] ?? 0).toDouble(),
-        onboardingComplete: j['onboardingComplete'] ?? false,
-      );
+    farmName: j['farmName'] ?? 'My Farm',
+    defaultPricePerCrate: (j['defaultPricePerCrate'] ?? 0).toDouble(),
+    onboardingComplete: j['onboardingComplete'] ?? false,
+  );
 
-  AppSettings copyWith({
-    String? farmName,
-    double? defaultPricePerCrate,
-    bool? onboardingComplete,
-  }) =>
+  AppSettings copyWith({String? farmName, double? defaultPricePerCrate, bool? onboardingComplete}) =>
       AppSettings(
         farmName: farmName ?? this.farmName,
         defaultPricePerCrate: defaultPricePerCrate ?? this.defaultPricePerCrate,
@@ -61,10 +57,7 @@ class SettingsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> completeOnboarding({
-    required String farmName,
-    required double defaultPricePerCrate,
-  }) =>
+  Future<void> completeOnboarding({required String farmName, required double defaultPricePerCrate}) =>
       save(_settings.copyWith(
         farmName: farmName,
         defaultPricePerCrate: defaultPricePerCrate,

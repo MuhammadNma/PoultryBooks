@@ -5,28 +5,18 @@ part 'sale.g.dart';
 
 @HiveType(typeId: AppConstants.saleTypeId)
 class Sale extends HiveObject {
-  @HiveField(0)
-  final String id;
-  @HiveField(1)
-  DateTime date;
-  @HiveField(2)
-  String customerId;
-  @HiveField(3)
-  String customerName;
-  @HiveField(4)
-  int crates;
-  @HiveField(5)
-  int loosePieces;
-  @HiveField(6)
-  double pricePerCrate;
-  @HiveField(7)
-  double amountPaid;
-  @HiveField(8)
-  String? flockId;
-  @HiveField(9)
-  String? notes;
-  @HiveField(10)
-  bool synced;
+  @HiveField(0)  final String id;
+  @HiveField(1)  DateTime date;
+  @HiveField(2)  String customerId;
+  @HiveField(3)  String customerName;
+  @HiveField(4)  int crates;
+  @HiveField(5)  int loosePieces;
+  @HiveField(6)  double pricePerCrate;
+  @HiveField(7)  double amountPaid;
+  @HiveField(8)  String? flockId;
+  @HiveField(9)  String? notes;
+  @HiveField(10) bool synced;
+  @HiveField(11) bool isGift;
 
   Sale({
     required this.id,
@@ -40,41 +30,40 @@ class Sale extends HiveObject {
     this.flockId,
     this.notes,
     this.synced = false,
+    this.isGift = false,
   });
 
   double get totalEggIncome {
+    if (isGift) return 0;
     final perEgg = pricePerCrate / AppConstants.eggsPerCrate;
     return (crates * pricePerCrate) + (loosePieces * perEgg);
   }
 
-  double get amountOwed =>
-      (totalEggIncome - amountPaid).clamp(0, double.infinity);
+  double get amountOwed {
+    if (isGift) return 0;
+    return (totalEggIncome - amountPaid).clamp(0, double.infinity);
+  }
+
   int get totalEggs => (crates * AppConstants.eggsPerCrate) + loosePieces;
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'date': date.toIso8601String(),
-        'customerId': customerId,
-        'customerName': customerName,
-        'crates': crates,
-        'loosePieces': loosePieces,
-        'pricePerCrate': pricePerCrate,
-        'amountPaid': amountPaid,
-        'flockId': flockId,
-        'notes': notes,
-      };
+    'id': id, 'date': date.toIso8601String(),
+    'customerId': customerId, 'customerName': customerName,
+    'crates': crates, 'loosePieces': loosePieces,
+    'pricePerCrate': pricePerCrate, 'amountPaid': amountPaid,
+    'flockId': flockId, 'notes': notes, 'isGift': isGift,
+  };
 
   factory Sale.fromJson(Map<String, dynamic> j) => Sale(
-        id: j['id'],
-        date: DateTime.parse(j['date']),
-        customerId: j['customerId'],
-        customerName: j['customerName'] ?? '',
-        crates: (j['crates'] ?? 0) as int,
-        loosePieces: (j['loosePieces'] ?? 0) as int,
-        pricePerCrate: (j['pricePerCrate'] ?? 0).toDouble(),
-        amountPaid: (j['amountPaid'] ?? 0).toDouble(),
-        flockId: j['flockId'],
-        notes: j['notes'],
-        synced: true,
-      );
+    id: j['id'], date: DateTime.parse(j['date']),
+    customerId: j['customerId'],
+    customerName: j['customerName'] ?? '',
+    crates: (j['crates'] ?? 0) as int,
+    loosePieces: (j['loosePieces'] ?? 0) as int,
+    pricePerCrate: (j['pricePerCrate'] ?? 0).toDouble(),
+    amountPaid: (j['amountPaid'] ?? 0).toDouble(),
+    flockId: j['flockId'], notes: j['notes'],
+    synced: true,
+    isGift: j['isGift'] ?? false,
+  );
 }

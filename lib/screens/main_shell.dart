@@ -15,15 +15,14 @@ import 'settings/settings_screen.dart';
 
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
-  @override
-  State<MainShell> createState() => MainShellState();
+  @override State<MainShell> createState() => MainShellState();
 }
 
+// Public state so DashboardScreen can call switchTab / triggerSync
 class MainShellState extends State<MainShell> {
   int _index = 0;
 
   void switchTab(int index) => setState(() => _index = index);
-
   void triggerSync() => _sync();
 
   @override
@@ -36,12 +35,12 @@ class MainShellState extends State<MainShell> {
   }
 
   void _sync() => context.read<SyncProvider>().syncAll(
-        flocks: context.read<FlockProvider>(),
-        logs: context.read<DailyLogProvider>(),
-        sales: context.read<SaleProvider>(),
-        expenses: context.read<ExpenseProvider>(),
-        customers: context.read<CustomerProvider>(),
-      );
+    flocks:    context.read<FlockProvider>(),
+    logs:      context.read<DailyLogProvider>(),
+    sales:     context.read<SaleProvider>(),
+    expenses:  context.read<ExpenseProvider>(),
+    customers: context.read<CustomerProvider>(),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -101,9 +100,7 @@ class _SyncBanner extends StatelessWidget {
         color: Colors.blue.shade50,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
         child: const Row(children: [
-          SizedBox(
-              width: 14,
-              height: 14,
+          SizedBox(width: 14, height: 14,
               child: CircularProgressIndicator(strokeWidth: 2)),
           SizedBox(width: 10),
           Text('Syncing…', style: TextStyle(fontSize: 12)),
@@ -117,10 +114,8 @@ class _SyncBanner extends StatelessWidget {
         child: Row(children: [
           Icon(Icons.wifi_off, size: 14, color: Colors.orange.shade800),
           const SizedBox(width: 8),
-          Expanded(
-              child: Text('Offline — changes will sync when connected',
-                  style:
-                      TextStyle(fontSize: 12, color: Colors.orange.shade800))),
+          Expanded(child: Text('Offline — changes will sync when connected',
+              style: TextStyle(fontSize: 12, color: Colors.orange.shade800))),
         ]),
       );
     }
@@ -131,15 +126,12 @@ class _SyncBanner extends StatelessWidget {
         child: Row(children: [
           Icon(Icons.sync_problem, size: 14, color: Colors.red.shade700),
           const SizedBox(width: 8),
-          const Expanded(
-              child: Text('Sync failed', style: TextStyle(fontSize: 12))),
+          const Expanded(child: Text('Sync failed', style: TextStyle(fontSize: 12))),
           GestureDetector(
             onTap: onRetry,
-            child: Text('Retry',
-                style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.red.shade700,
-                    fontWeight: FontWeight.bold)),
+            child: Text('Retry', style: TextStyle(
+                fontSize: 12, color: Colors.red.shade700,
+                fontWeight: FontWeight.bold)),
           ),
         ]),
       );

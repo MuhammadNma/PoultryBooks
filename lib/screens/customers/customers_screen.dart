@@ -6,55 +6,168 @@ import '../../providers/customer_provider.dart';
 import '../../providers/sale_provider.dart';
 import '../../models/customer.dart';
 import '../../models/sale.dart';
-import '../../core/app_theme.dart';
 import '../../utils/formatters.dart';
+import '../../core/app_theme.dart';
 
-class CustomersScreen extends StatelessWidget {
+class CustomersScreen extends StatefulWidget {
   const CustomersScreen({super.key});
+  @override
+  State<CustomersScreen> createState() => _CustomersScreenState();
+}
+
+class _CustomersScreenState extends State<CustomersScreen> {
+  final _searchCtrl = TextEditingController();
+  String _query = '';
+  bool _showOwingOnly = false;
 
   @override
   Widget build(BuildContext context) {
     final customers = context.watch<CustomerProvider>().all;
     final sales = context.watch<SaleProvider>();
+    final totalOwing = sales.totalOwingAllCustomers;
+
+    final filtered = customers.where((c) {
+      final matchesQuery = _query.isEmpty ||
+          c.name.toLowerCase().contains(_query.toLowerCase()) ||
+          c.phone.contains(_query);
+      final matchesOwing =
+          !_showOwingOnly || sales.totalOwingForCustomer(c.id) > 0;
+      return matchesQuery && matchesOwing;
+    }).toList();
 
     return Scaffold(
       appBar: AppBar(title: const Text('Customers')),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _openForm(context, null),
+        heroTag: 'customers_fab',
+        onPressed: () => Navigator.push(context,
+            MaterialPageRoute(builder: (_) => const CustomerFormScreen())),
         icon: const Icon(Icons.person_add_alt_1),
         label: const Text('Add Customer'),
       ),
-      body: customers.isEmpty
-          ? _Empty(onAdd: () => _openForm(context, null))
-          : ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: customers.length,
-              itemBuilder: (_, i) {
-                final owing = sales.totalOwingForCustomer(customers[i].id);
-                return _CustomerTile(
-                  customer: customers[i],
-                  owing: owing,
-                  onTap: () => Navigator.push(
+      body: Column(children: [
+        // Owing summary banner
+        if (totalOwing > 0)
+          Container(
+            margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.red.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.red.shade100),
+            ),
+            child: Row(children: [
+              Icon(Icons.warning_amber_rounded,
+                  color: Colors.orange.shade700, size: 18),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  '${customers.where((c) => sales.totalOwingForCustomer(c.id) > 0).length} customers owe you',
+                  style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(formatMoney(totalOwing),
+                  style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.red.shade700,
+                      fontSize: 14),
+                  overflow: TextOverflow.ellipsis),
+            ]),
+          ),
+
+        // Search + filter row
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+          child: Row(children: [
+            Expanded(
+              child: TextField(
+                controller: _searchCtrl,
+                onChanged: (v) => setState(() => _query = v),
+                decoration: InputDecoration(
+                  hintText: 'Search customers…',
+                  prefixIcon: const Icon(Icons.search, size: 20),
+                  suffixIcon: _query.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear, size: 18),
+                          onPressed: () {
+                            _searchCtrl.clear();
+                            setState(() => _query = '');
+                          })
+                      : null,
+                  contentPadding:
+                      const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            FilterChip(
+              label: const Text('Owing', style: TextStyle(fontSize: 12)),
+              selected: _showOwingOnly,
+              onSelected: (v) => setState(() => _showOwingOnly = v),
+              selectedColor: Colors.red.shade100,
+              labelStyle: TextStyle(
+                color:
+                    _showOwingOnly ? Colors.red.shade700 : Colors.grey.shade700,
+              ),
+            ),
+          ]),
+        ),
+        const SizedBox(height: 8),
+
+        // List
+        Expanded(
+          child: customers.isEmpty
+              ? _Empty(
+                  onAdd: () => Navigator.push(
                       context,
                       MaterialPageRoute(
-                          builder: (_) => CustomerDetailScreen(
-                              customerId: customers[i].id))),
-                );
-              },
-            ),
+                          builder: (_) => const CustomerFormScreen())))
+              : filtered.isEmpty
+                  ? Center(
+                      child: Padding(
+                      padding: const EdgeInsets.all(32),
+                      child: Text(
+                          _showOwingOnly
+                              ? 'No customers with outstanding balance'
+                              : 'No customers match your search',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: Colors.grey.shade500)),
+                    ))
+                  : ListView.builder(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 4),
+                      itemCount: filtered.length,
+                      itemBuilder: (_, i) {
+                        final owing =
+                            sales.totalOwingForCustomer(filtered[i].id);
+                        return _CustomerTile(
+                          customer: filtered[i],
+                          owing: owing,
+                          onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) => CustomerDetailScreen(
+                                      customerId: filtered[i].id))),
+                        );
+                      },
+                    ),
+        ),
+      ]),
     );
   }
-
-  void _openForm(BuildContext context, Customer? c) => Navigator.push(context,
-      MaterialPageRoute(builder: (_) => CustomerFormScreen(existing: c)));
 }
 
+// ---- Customer Tile ----
 class _CustomerTile extends StatelessWidget {
   final Customer customer;
   final double owing;
   final VoidCallback onTap;
-  const _CustomerTile(
-      {required this.customer, required this.owing, required this.onTap});
+  const _CustomerTile({
+    required this.customer,
+    required this.owing,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) => Card(
@@ -71,7 +184,8 @@ class _CustomerTile extends StatelessWidget {
                         : Colors.green.shade700)),
           ),
           title: Text(customer.name,
-              style: const TextStyle(fontWeight: FontWeight.w600)),
+              style: const TextStyle(fontWeight: FontWeight.w600),
+              overflow: TextOverflow.ellipsis),
           subtitle: Text(customer.phone,
               style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
           trailing: owing > 0
@@ -86,7 +200,8 @@ class _CustomerTile extends StatelessWidget {
                           style: TextStyle(
                               fontWeight: FontWeight.bold,
                               color: Colors.red.shade700,
-                              fontSize: 14)),
+                              fontSize: 13),
+                          overflow: TextOverflow.ellipsis),
                     ])
               : Icon(Icons.check_circle,
                   color: Colors.green.shade400, size: 20),
@@ -102,8 +217,9 @@ class CustomerDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final customer = context.watch<CustomerProvider>().getById(customerId);
-    if (customer == null)
-      return const Scaffold(body: Center(child: Text('Not found')));
+    if (customer == null) {
+      return const Scaffold(body: Center(child: Text('Customer not found')));
+    }
 
     final sales = context.watch<SaleProvider>().forCustomer(customerId);
     final owing =
@@ -112,91 +228,116 @@ class CustomerDetailScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(customer.name),
+        title: Text(customer.name, overflow: TextOverflow.ellipsis),
         actions: [
           IconButton(
-              icon: const Icon(Icons.edit_outlined),
-              onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => CustomerFormScreen(existing: customer))))
+            icon: const Icon(Icons.edit_outlined),
+            onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => CustomerFormScreen(existing: customer))),
+          ),
         ],
       ),
       body: ListView(padding: const EdgeInsets.all(16), children: [
+        // Summary card
         Card(
             child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(children: [
-                  Row(children: [
-                    Icon(Icons.phone_outlined,
-                        size: 16, color: Colors.grey.shade500),
-                    const SizedBox(width: 8),
-                    Text(customer.phone),
-                  ]),
-                  if (customer.address != null) ...[
-                    const SizedBox(height: 4),
-                    Row(children: [
-                      Icon(Icons.location_on_outlined,
-                          size: 16, color: Colors.grey.shade500),
-                      const SizedBox(width: 8),
-                      Text(customer.address!),
-                    ]),
-                  ],
-                  const SizedBox(height: 16),
-                  Row(children: [
-                    _Stat('Total Bought', formatMoney(income),
-                        Colors.grey.shade700),
-                    _Stat(
+          padding: const EdgeInsets.all(16),
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              Icon(Icons.phone_outlined, size: 16, color: Colors.grey.shade500),
+              const SizedBox(width: 8),
+              Expanded(
+                  child: Text(customer.phone, overflow: TextOverflow.ellipsis)),
+            ]),
+            if (customer.address != null && customer.address!.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Row(children: [
+                Icon(Icons.location_on_outlined,
+                    size: 16, color: Colors.grey.shade500),
+                const SizedBox(width: 8),
+                Expanded(
+                    child: Text(customer.address!,
+                        overflow: TextOverflow.ellipsis)),
+              ]),
+            ],
+            const SizedBox(height: 16),
+            IntrinsicHeight(
+              child: Row(children: [
+                Expanded(
+                    child: _StatBox('Total Sales', formatMoney(income),
+                        Colors.grey.shade700)),
+                VerticalDivider(color: Colors.grey.shade200),
+                Expanded(
+                    child: _StatBox(
                         'Outstanding',
                         formatMoney(owing),
                         owing > 0
                             ? Colors.red.shade600
-                            : Colors.green.shade700),
-                  ]),
-                  if (owing > 0) ...[
-                    const SizedBox(height: 12),
-                    SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: () => _markAllPaid(context, sales),
-                          icon: const Icon(Icons.payments_outlined),
-                          label: const Text('Mark All Paid'),
-                        )),
-                  ],
-                ]))),
-        const SizedBox(height: 16),
-        const Text('Sale History',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                            : Colors.green.shade700)),
+              ]),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: owing > 0 ? Colors.red.shade50 : Colors.green.shade50,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                      child: Text(
+                          owing > 0 ? 'Outstanding Balance' : '✓ Fully Settled',
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                          overflow: TextOverflow.ellipsis)),
+                  const SizedBox(width: 8),
+                  Text(formatMoney(owing),
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                          color: owing > 0
+                              ? Colors.red.shade700
+                              : Colors.green.shade700)),
+                ],
+              ),
+            ),
+            if (owing > 0) ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () => _markAllPaid(context, sales),
+                    icon: const Icon(Icons.payments_outlined),
+                    label: const Text('Mark All as Paid'),
+                  )),
+            ],
+          ]),
+        )),
+        const SizedBox(height: 20),
+
+        // Sale history header
+        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+          const Text('Sale History',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          Text('${sales.length} sales',
+              style: TextStyle(color: Colors.grey.shade500, fontSize: 13)),
+        ]),
         const SizedBox(height: 8),
+
         if (sales.isEmpty)
           Padding(
               padding: const EdgeInsets.symmetric(vertical: 24),
               child: Center(
-                  child: Text('No sales yet',
+                  child: Text('No sales recorded yet',
                       style: TextStyle(color: Colors.grey.shade500))))
         else
-          ...sales.map((s) => Card(
-                  child: ListTile(
-                dense: true,
-                title: Text(formatDate(s.date),
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w600, fontSize: 13)),
-                subtitle: Text(
-                    '${formatEggs(s.totalEggs)} · ₦${s.pricePerCrate.toStringAsFixed(0)}/crate',
-                    style: const TextStyle(fontSize: 11)),
-                trailing: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(formatMoney(s.totalEggIncome),
-                          style: const TextStyle(
-                              fontWeight: FontWeight.bold, fontSize: 13)),
-                      if (s.amountOwed > 0)
-                        Text('Owes ${formatMoney(s.amountOwed)}',
-                            style: TextStyle(
-                                fontSize: 10, color: Colors.red.shade500)),
-                    ]),
-              ))),
+          ...sales.map((s) => _SaleTile(sale: s)),
+
         const SizedBox(height: 80),
       ]),
     );
@@ -216,19 +357,66 @@ class CustomerDetailScreen extends StatelessWidget {
   }
 }
 
-class _Stat extends StatelessWidget {
+class _SaleTile extends StatelessWidget {
+  final Sale sale;
+  const _SaleTile({required this.sale});
+
+  @override
+  Widget build(BuildContext context) {
+    final isPaid = sale.amountOwed <= 0;
+    return Card(
+      margin: const EdgeInsets.only(bottom: 6),
+      child: ListTile(
+        dense: true,
+        leading: CircleAvatar(
+          radius: 18,
+          backgroundColor:
+              isPaid ? Colors.green.shade50 : Colors.orange.shade50,
+          child: Icon(
+            isPaid ? Icons.check : Icons.pending_outlined,
+            size: 14,
+            color: isPaid ? Colors.green.shade700 : Colors.orange.shade700,
+          ),
+        ),
+        title: Text(formatDate(sale.date),
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+        subtitle: Text(
+          '${sale.crates} crates · ₦${sale.pricePerCrate.toStringAsFixed(0)}/crate',
+          style: const TextStyle(fontSize: 11),
+          overflow: TextOverflow.ellipsis,
+        ),
+        trailing: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(formatMoney(sale.totalEggIncome),
+                style:
+                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+            if (!isPaid)
+              Text('Owes ${formatMoney(sale.amountOwed)}',
+                  style: TextStyle(fontSize: 10, color: Colors.red.shade500),
+                  overflow: TextOverflow.ellipsis),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StatBox extends StatelessWidget {
   final String label, value;
   final Color color;
-  const _Stat(this.label, this.value, this.color);
+  const _StatBox(this.label, this.value, this.color);
   @override
-  Widget build(BuildContext context) => Expanded(
-          child: Column(children: [
+  Widget build(BuildContext context) => Column(children: [
         Text(label,
             style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
-        const SizedBox(height: 2),
+        const SizedBox(height: 4),
         Text(value,
-            style: TextStyle(fontWeight: FontWeight.bold, color: color)),
-      ]));
+            style: TextStyle(fontWeight: FontWeight.bold, color: color),
+            overflow: TextOverflow.ellipsis,
+            maxLines: 1),
+      ]);
 }
 
 // ---- Customer Form ----
@@ -327,7 +515,7 @@ class _Empty extends StatelessWidget {
           const Text('No customers yet',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
-          Text('Add customers to track egg sales and outstanding payments.',
+          Text('Add customers to track egg sales and payments.',
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.grey.shade500)),
         ]),

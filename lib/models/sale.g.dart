@@ -3,8 +3,7 @@
 part of 'sale.dart';
 
 class SaleAdapter extends TypeAdapter<Sale> {
-  @override
-  final int typeId = 2;
+  @override final int typeId = 2;
 
   @override
   Sale read(BinaryReader reader) {
@@ -23,40 +22,30 @@ class SaleAdapter extends TypeAdapter<Sale> {
       amountPaid: (f[7] ?? 0.0) as double,
       flockId: f[8] as String?,
       notes: f[9] as String?,
-      synced: (f[10] ?? false) as bool,
+      synced: f[10] == null ? false : f[10] as bool,
+      isGift: f[11] == null ? false : f[11] as bool,
     );
   }
 
   @override
   void write(BinaryWriter writer, Sale obj) {
     writer
-      ..writeByte(11)
-      ..writeByte(0)
-      ..write(obj.id)
-      ..writeByte(1)
-      ..write(obj.date)
-      ..writeByte(2)
-      ..write(obj.customerId)
-      ..writeByte(3)
-      ..write(obj.customerName)
-      ..writeByte(4)
-      ..write(obj.crates)
-      ..writeByte(5)
-      ..write(obj.loosePieces)
-      ..writeByte(6)
-      ..write(obj.pricePerCrate)
-      ..writeByte(7)
-      ..write(obj.amountPaid)
-      ..writeByte(8)
-      ..write(obj.flockId)
-      ..writeByte(9)
-      ..write(obj.notes)
-      ..writeByte(10)
-      ..write(obj.synced);
+      ..writeByte(12)
+      ..writeByte(0)..write(obj.id)
+      ..writeByte(1)..write(obj.date)
+      ..writeByte(2)..write(obj.customerId)
+      ..writeByte(3)..write(obj.customerName)
+      ..writeByte(4)..write(obj.crates)
+      ..writeByte(5)..write(obj.loosePieces)
+      ..writeByte(6)..write(obj.pricePerCrate)
+      ..writeByte(7)..write(obj.amountPaid)
+      ..writeByte(8)..write(obj.flockId)
+      ..writeByte(9)..write(obj.notes)
+      ..writeByte(10)..write(obj.synced)
+      ..writeByte(11)..write(obj.isGift);
   }
 
-  @override
-  bool operator ==(Object o) => o is SaleAdapter && o.typeId == typeId;
-  @override
-  int get hashCode => typeId.hashCode;
+  @override bool operator ==(Object o) =>
+      o is SaleAdapter && o.typeId == typeId;
+  @override int get hashCode => typeId.hashCode;
 }

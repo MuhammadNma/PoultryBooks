@@ -3,8 +3,7 @@
 part of 'expense.dart';
 
 class ExpenseAdapter extends TypeAdapter<Expense> {
-  @override
-  final int typeId = 3;
+  @override final int typeId = 3;
 
   @override
   Expense read(BinaryReader reader) {
@@ -19,7 +18,7 @@ class ExpenseAdapter extends TypeAdapter<Expense> {
       amount: (f[3] ?? 0.0) as double,
       description: f[4] as String?,
       flockId: f[5] as String?,
-      synced: (f[6] ?? false) as bool,
+      synced: f[6] == null ? false : f[6] as bool,
     );
   }
 
@@ -27,24 +26,16 @@ class ExpenseAdapter extends TypeAdapter<Expense> {
   void write(BinaryWriter writer, Expense obj) {
     writer
       ..writeByte(7)
-      ..writeByte(0)
-      ..write(obj.id)
-      ..writeByte(1)
-      ..write(obj.date)
-      ..writeByte(2)
-      ..write(obj.category)
-      ..writeByte(3)
-      ..write(obj.amount)
-      ..writeByte(4)
-      ..write(obj.description)
-      ..writeByte(5)
-      ..write(obj.flockId)
-      ..writeByte(6)
-      ..write(obj.synced);
+      ..writeByte(0)..write(obj.id)
+      ..writeByte(1)..write(obj.date)
+      ..writeByte(2)..write(obj.category)
+      ..writeByte(3)..write(obj.amount)
+      ..writeByte(4)..write(obj.description)
+      ..writeByte(5)..write(obj.flockId)
+      ..writeByte(6)..write(obj.synced);
   }
 
-  @override
-  bool operator ==(Object o) => o is ExpenseAdapter && o.typeId == typeId;
-  @override
-  int get hashCode => typeId.hashCode;
+  @override bool operator ==(Object o) =>
+      o is ExpenseAdapter && o.typeId == typeId;
+  @override int get hashCode => typeId.hashCode;
 }

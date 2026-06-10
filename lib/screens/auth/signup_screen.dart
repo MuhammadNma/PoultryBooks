@@ -85,18 +85,16 @@ class _SignupScreenState extends State<SignupScreen> {
                         v!.length < 6 ? 'Minimum 6 characters' : null),
                 const SizedBox(height: 28),
                 SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: _loading ? null : _submit,
-                    child: _loading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.white))
-                        : const Text('Create Account'),
-                  ),
-                ),
+                    width: double.infinity,
+                    child: ElevatedButton(
+                        onPressed: _loading ? null : _submit,
+                        child: _loading
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: Colors.white))
+                            : const Text('Create Account'))),
               ],
             ),
           ),

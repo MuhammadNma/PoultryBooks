@@ -17,21 +17,22 @@ import 'customer_provider.dart';
 enum SyncStatus { idle, syncing, synced, error, offline }
 
 class SyncProvider extends ChangeNotifier {
-  final _db = FirebaseFirestore.instance;
+  final _db   = FirebaseFirestore.instance;
   final _auth = FirebaseAuth.instance;
 
-  SyncStatus _status = SyncStatus.idle;
-  bool _isOnline = true;
+  SyncStatus _status  = SyncStatus.idle;
+  bool _isOnline      = true;
   String? _lastError;
 
-  SyncStatus get status => _status;
-  bool get isOnline => _isOnline;
-  String? get lastError => _lastError;
+  SyncStatus get status    => _status;
+  bool       get isOnline  => _isOnline;
+  String?    get lastError => _lastError;
 
   String? get _uid => _auth.currentUser?.uid;
 
-  CollectionReference? _col(String name) =>
-      _uid == null ? null : _db.collection('users').doc(_uid).collection(name);
+  CollectionReference? _col(String name) => _uid == null
+      ? null
+      : _db.collection('users').doc(_uid).collection(name);
 
   void startMonitoring() {
     Connectivity().onConnectivityChanged.listen((results) {
@@ -92,47 +93,51 @@ class SyncProvider extends ChangeNotifier {
       }
 
       // ---- PULL ----
+      // For each collection: if the record was deleted locally,
+      // delete it from Firestore too so it never comes back.
 
       // Flocks
       final fs = await _col('flocks')?.get();
       for (final d in fs?.docs ?? []) {
         if (flocks.getById(d.id) == null) {
-          await flocks.add(Flock.fromJson(d.data() as Map<String, dynamic>));
+          await flocks.add(
+              Flock.fromJson(d.data() as Map<String, dynamic>));
         }
       }
 
-      // Daily logs — skip deleted
+      // Daily logs
       final ls = await _col('daily_logs')?.get();
       for (final d in ls?.docs ?? []) {
         if (logs.isDeleted(d.id)) {
           await _col('daily_logs')?.doc(d.id).delete();
         } else {
           final j = d.data() as Map<String, dynamic>;
-          if (logs.getForDate(DateTime.parse(j['date']), j['flockId']) ==
-              null) {
+          if (logs.getForDate(
+                  DateTime.parse(j['date']), j['flockId']) == null) {
             await logs.add(DailyLog.fromJson(j));
           }
         }
       }
 
-      // Sales — skip deleted
+      // Sales
       final ss = await _col('sales')?.get();
       for (final d in ss?.docs ?? []) {
         if (sales.isDeleted(d.id)) {
           await _col('sales')?.doc(d.id).delete();
         } else if (!sales.all.any((s) => s.id == d.id)) {
-          await sales.add(Sale.fromJson(d.data() as Map<String, dynamic>));
+          await sales.add(
+              Sale.fromJson(d.data() as Map<String, dynamic>));
         }
       }
 
-      // Expenses — skip deleted
+      // Expenses
       final es = await _col('expenses')?.get();
       for (final d in es?.docs ?? []) {
         if (expenses.isDeleted(d.id)) {
           await _col('expenses')?.doc(d.id).delete();
         } else if (!expenses.all.any((e) => e.id == d.id)) {
-          await expenses
-              .add(Expense.fromJson(d.data() as Map<String, dynamic>));
+          await expenses.add(
+              Expense.fromJson(d.data() as Map<String, dynamic>));
         }
       }
 
@@ -140,8 +145,8 @@ class SyncProvider extends ChangeNotifier {
       final cs = await _col('customers')?.get();
       for (final d in cs?.docs ?? []) {
         if (customers.getById(d.id) == null) {
-          await customers
-              .add(Customer.fromJson(d.data() as Map<String, dynamic>));
+          await customers.add(
+              Customer.fromJson(d.data() as Map<String, dynamic>));
         }
       }
 

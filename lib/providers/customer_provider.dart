@@ -17,22 +17,10 @@ class CustomerProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> add(Customer c) async {
-    await _box!.put(c.id, c);
-    notifyListeners();
-  }
-
-  Future<void> update(Customer c) async {
-    await _box!.put(c.id, c);
-    notifyListeners();
-  }
-
-  Future<void> delete(String id) async {
-    await _box!.delete(id);
-    notifyListeners();
-  }
+  Future<void> add(Customer c)    async { await _box!.put(c.id, c); notifyListeners(); }
+  Future<void> update(Customer c) async { await _box!.put(c.id, c); notifyListeners(); }
+  Future<void> delete(String id)  async { await _box!.delete(id); notifyListeners(); }
 
   Customer? getById(String id) => _box?.get(id);
-
   List<Customer> get unsynced => all.where((c) => !c.synced).toList();
 }

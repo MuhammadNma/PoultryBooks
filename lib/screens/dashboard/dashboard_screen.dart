@@ -14,6 +14,7 @@ import '../flocks/flocks_screen.dart';
 import '../sales/sales_screen.dart';
 import '../customers/customers_screen.dart';
 import '../main_shell.dart';
+import '../daily_log/egg_log_history_screen.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -44,43 +45,45 @@ class DashboardScreen extends StatelessWidget {
           children: [
             // ---- Header ----
             _Header(farmName: settings.farmName, now: now),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
 
             // ---- KPI Cards ----
-            GridView.count(
-              crossAxisCount: 2,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              childAspectRatio: 1.55,
-              children: [
-                _KpiCard(
-                  label: 'Eggs on Hand',
-                  value: formatEggs(eggsOnHand),
-                  icon: Icons.inventory_2_outlined,
-                  color: Colors.orange.shade600,
-                ),
-                _KpiCard(
-                  label: 'Month Income',
-                  value: formatMoneyCompact(monthIncome),
-                  icon: Icons.trending_up,
-                  color: Colors.green.shade600,
-                ),
-                _KpiCard(
-                  label: 'Month Expenses',
-                  value: formatMoneyCompact(monthExpenses),
-                  icon: Icons.trending_down,
-                  color: Colors.red.shade400,
-                ),
-                _KpiCard(
-                  label: 'Month Profit',
-                  value: formatMoneyCompact(monthProfit),
-                  icon: Icons.account_balance,
-                  color: monthProfit >= 0 ? Colors.green.shade700 : Colors.red,
-                ),
-              ],
-            ),
+            // Use LayoutBuilder so cards adapt to screen width
+            LayoutBuilder(builder: (context, constraints) {
+              final cardWidth = (constraints.maxWidth - 12) / 2;
+              return Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  _KpiCard(
+                      width: cardWidth,
+                      label: 'Eggs on Hand',
+                      value: formatEggs(eggsOnHand),
+                      icon: Icons.inventory_2_outlined,
+                      color: Colors.orange.shade600),
+                  _KpiCard(
+                      width: cardWidth,
+                      label: 'Month Income',
+                      value: formatMoney(monthIncome),
+                      icon: Icons.trending_up,
+                      color: Colors.green.shade600),
+                  _KpiCard(
+                      width: cardWidth,
+                      label: 'Month Expenses',
+                      value: formatMoney(monthExpenses),
+                      icon: Icons.trending_down,
+                      color: Colors.red.shade400),
+                  _KpiCard(
+                      width: cardWidth,
+                      label: 'Month Profit',
+                      value: formatMoney(monthProfit),
+                      icon: Icons.account_balance,
+                      color: monthProfit >= 0
+                          ? Colors.green.shade700
+                          : Colors.red),
+                ],
+              );
+            }),
             const SizedBox(height: 20),
 
             // ---- Quick Access ----
@@ -90,8 +93,8 @@ class DashboardScreen extends StatelessWidget {
               crossAxisCount: 4,
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
+              mainAxisSpacing: 10,
+              crossAxisSpacing: 10,
               childAspectRatio: 0.85,
               children: [
                 _QuickAction(
@@ -136,15 +139,13 @@ class DashboardScreen extends StatelessWidget {
                           builder: (_) => const ExpenseFormScreen())),
                 ),
                 _QuickAction(
-                  icon: Icons.egg_alt_outlined,
-                  label: 'Log Eggs',
-                  color: Colors.teal.shade500,
-                  onTap: () {
-                    // Switch to Daily Log tab (index 1)
-                    final shell =
-                        context.findAncestorStateOfType<MainShellState>();
-                    shell?.switchTab(1);
-                  },
+                  icon: Icons.history,
+                  label: 'Egg History',
+                  color: Colors.teal.shade700,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const EggLogHistoryScreen())),
                 ),
                 _QuickAction(
                   icon: Icons.person_add_alt_1_outlined,
@@ -179,8 +180,10 @@ class DashboardScreen extends StatelessWidget {
                   ? Row(children: [
                       Icon(Icons.info_outline, color: Colors.grey.shade400),
                       const SizedBox(width: 10),
-                      Text('No eggs logged today yet',
-                          style: TextStyle(color: Colors.grey.shade500)),
+                      Expanded(
+                        child: Text('No eggs logged today yet',
+                            style: TextStyle(color: Colors.grey.shade500)),
+                      ),
                     ])
                   : Column(children: [
                       ...flocks.active.map((flock) {
@@ -190,31 +193,29 @@ class DashboardScreen extends StatelessWidget {
                         if (eggs == 0) return const SizedBox.shrink();
                         return Padding(
                           padding: const EdgeInsets.symmetric(vertical: 4),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(flock.name,
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.w500)),
-                              Text(formatEggs(eggs),
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.w600)),
-                            ],
-                          ),
+                          child: Row(children: [
+                            Expanded(
+                                child: Text(flock.name,
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.w500),
+                                    overflow: TextOverflow.ellipsis)),
+                            Text(formatEggs(eggs),
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w600)),
+                          ]),
                         );
                       }),
                       const Divider(height: 16),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text('Total today',
-                              style: TextStyle(
-                                  color: Colors.grey.shade600, fontSize: 13)),
-                          Text(formatEggs(todayEggs),
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.bold, fontSize: 13)),
-                        ],
-                      ),
+                      Row(children: [
+                        Expanded(
+                            child: Text('Total today',
+                                style: TextStyle(
+                                    color: Colors.grey.shade600,
+                                    fontSize: 13))),
+                        Text(formatEggs(todayEggs),
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 13)),
+                      ]),
                     ]),
             )),
             const SizedBox(height: 16),
@@ -233,11 +234,14 @@ class DashboardScreen extends StatelessWidget {
                   Expanded(
                       child: Text('Customers owe you',
                           style: TextStyle(color: Colors.grey.shade700))),
-                  Text(formatMoney(totalOwing),
-                      style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                          color: Colors.red.shade600)),
+                  const SizedBox(width: 8),
+                  Flexible(
+                      child: Text(formatMoney(totalOwing),
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                              color: Colors.red.shade600),
+                          overflow: TextOverflow.ellipsis)),
                 ]),
               )),
               const SizedBox(height: 16),
@@ -251,27 +255,24 @@ class DashboardScreen extends StatelessWidget {
                   child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
-                  children: expCats.entries
-                      .map((e) => Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 4),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Row(children: [
-                                  _categoryIcon(e.key),
-                                  const SizedBox(width: 8),
-                                  Text(e.key,
-                                      style: const TextStyle(fontSize: 13)),
-                                ]),
+                    children: expCats.entries
+                        .map((e) => Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 4),
+                              child: Row(children: [
+                                _categoryIcon(e.key),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                    child: Text(e.key,
+                                        style: const TextStyle(fontSize: 13),
+                                        overflow: TextOverflow.ellipsis)),
+                                const SizedBox(width: 8),
                                 Text(formatMoney(e.value),
                                     style: const TextStyle(
                                         fontWeight: FontWeight.w600,
                                         fontSize: 13)),
-                              ],
-                            ),
-                          ))
-                      .toList(),
-                ),
+                              ]),
+                            ))
+                        .toList()),
               )),
               const SizedBox(height: 16),
             ],
@@ -288,7 +289,8 @@ class DashboardScreen extends StatelessWidget {
                           color: AppTheme.primary, size: 20),
                     ),
                     title: Text(f.name,
-                        style: const TextStyle(fontWeight: FontWeight.w600)),
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                        overflow: TextOverflow.ellipsis),
                     subtitle: Text('${f.activeBirds} active birds'),
                     trailing: f.mortalityCount > 0
                         ? Text('${f.mortalityCount} lost',
@@ -320,7 +322,54 @@ class DashboardScreen extends StatelessWidget {
   }
 }
 
-// ---- Quick Action Widget ----
+// ---- KPI Card — uses fixed width, auto height ----
+class _KpiCard extends StatelessWidget {
+  final double width;
+  final String label, value;
+  final IconData icon;
+  final Color color;
+
+  const _KpiCard({
+    required this.width,
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+        width: width,
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.08),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: color.withOpacity(0.15)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: color, size: 22),
+              const SizedBox(height: 10),
+              Text(value,
+                  style: TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 15, color: color),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1),
+              const SizedBox(height: 2),
+              Text(label,
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1),
+            ],
+          ),
+        ),
+      );
+}
+
+// ---- Quick Action ----
 class _QuickAction extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -337,29 +386,36 @@ class _QuickAction extends StatelessWidget {
   @override
   Widget build(BuildContext context) => InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         child: Container(
           decoration: BoxDecoration(
             color: color.withOpacity(0.08),
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(12),
             border: Border.all(color: color.withOpacity(0.15)),
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, color: color, size: 26),
-              const SizedBox(height: 6),
-              Text(label,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                      fontSize: 11, fontWeight: FontWeight.w600, color: color)),
+              Icon(icon, color: color, size: 24),
+              const SizedBox(height: 5),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Text(label,
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: color)),
+              ),
             ],
           ),
         ),
       );
 }
 
-// ---- Supporting Widgets ----
+// ---- Header ----
 class _Header extends StatelessWidget {
   final String farmName;
   final DateTime now;
@@ -374,7 +430,7 @@ class _Header extends StatelessWidget {
             ? 'Good afternoon'
             : 'Good evening';
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         gradient:
             const LinearGradient(colors: [AppTheme.primary, AppTheme.light]),
@@ -388,62 +444,25 @@ class _Header extends StatelessWidget {
       ),
       child: Row(children: [
         Expanded(
-            child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(greeting,
-                style: const TextStyle(color: Colors.white70, fontSize: 14)),
-            const SizedBox(height: 2),
-            Text(farmName,
-                style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold)),
-            const SizedBox(height: 2),
-            Text(formatDate(now),
-                style: const TextStyle(color: Colors.white60, fontSize: 12)),
-          ],
-        )),
-        const Icon(Icons.agriculture, color: Colors.white38, size: 40),
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(greeting,
+              style: const TextStyle(color: Colors.white70, fontSize: 13)),
+          const SizedBox(height: 2),
+          Text(farmName,
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold),
+              overflow: TextOverflow.ellipsis),
+          const SizedBox(height: 2),
+          Text(formatDate(now),
+              style: const TextStyle(color: Colors.white60, fontSize: 11)),
+        ])),
+        const Icon(Icons.agriculture, color: Colors.white38, size: 36),
       ]),
     );
   }
-}
-
-class _KpiCard extends StatelessWidget {
-  final String label, value;
-  final IconData icon;
-  final Color color;
-  const _KpiCard({
-    required this.label,
-    required this.value,
-    required this.icon,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.08),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withOpacity(0.15)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Icon(icon, color: color, size: 22),
-            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(value,
-                  style: TextStyle(
-                      fontWeight: FontWeight.bold, fontSize: 17, color: color)),
-              Text(label,
-                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
-            ]),
-          ],
-        ),
-      );
 }
 
 class _SectionTitle extends StatelessWidget {
