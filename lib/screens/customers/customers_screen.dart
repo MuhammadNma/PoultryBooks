@@ -7,7 +7,6 @@ import '../../providers/sale_provider.dart';
 import '../../models/customer.dart';
 import '../../models/sale.dart';
 import '../../utils/formatters.dart';
-import '../../core/app_theme.dart';
 
 class CustomersScreen extends StatefulWidget {
   const CustomersScreen({super.key});
