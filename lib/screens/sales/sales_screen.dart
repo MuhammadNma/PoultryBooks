@@ -142,7 +142,13 @@ class _SalesScreenState extends State<SalesScreen> {
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (_) => _SaleDetailSheet(sale: sale),
+      builder: (_) => _SaleDetailSheet(
+        sale: sale,
+        onEdit: () {
+          Navigator.pop(context); // close sheet first
+          _openForm(context, sale);
+        },
+      ),
     );
   }
 }
@@ -226,7 +232,8 @@ class _SaleTile extends StatelessWidget {
 // ---- Sale Detail Sheet ----
 class _SaleDetailSheet extends StatelessWidget {
   final Sale sale;
-  const _SaleDetailSheet({required this.sale});
+  final VoidCallback onEdit;
+  const _SaleDetailSheet({required this.sale, required this.onEdit});
 
   @override
   Widget build(BuildContext context) {
@@ -238,6 +245,7 @@ class _SaleDetailSheet extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Drag handle
               Center(
                   child: Container(
                       width: 40,
@@ -246,6 +254,8 @@ class _SaleDetailSheet extends StatelessWidget {
                       decoration: BoxDecoration(
                           color: Colors.grey.shade300,
                           borderRadius: BorderRadius.circular(2)))),
+
+              // Header row: name + date + edit/delete icons
               Row(children: [
                 Expanded(
                     child: Text(sale.customerName,
@@ -272,11 +282,34 @@ class _SaleDetailSheet extends StatelessWidget {
                     ]),
                   ),
                 const SizedBox(width: 8),
+                // ── EDIT BUTTON ──
+                IconButton(
+                  icon: const Icon(Icons.edit_outlined),
+                  tooltip: 'Edit Sale',
+                  onPressed: onEdit,
+                  color: AppTheme.primary,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+                const SizedBox(width: 4),
+                // ── DELETE BUTTON ──
+                IconButton(
+                  icon: const Icon(Icons.delete_outline),
+                  tooltip: 'Delete Sale',
+                  onPressed: () => _confirmDelete(context),
+                  color: Colors.red.shade400,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+                const SizedBox(width: 4),
                 Text(formatDate(sale.date),
                     style:
                         TextStyle(color: Colors.grey.shade600, fontSize: 13)),
               ]),
+
               const SizedBox(height: 16),
+
+              // Detail rows
               _row('Crates', '${sale.crates} crates'),
               _row('Total Eggs',
                   '${sale.crates * AppConstants.eggsPerCrate} eggs'),
@@ -300,8 +333,10 @@ class _SaleDetailSheet extends StatelessWidget {
                     overflow: TextOverflow.ellipsis),
               ],
               const SizedBox(height: 20),
-              Row(children: [
-                if (!sale.isGift && !isPaid) ...[
+
+              // Action buttons
+              if (!sale.isGift && !isPaid)
+                Row(children: [
                   Expanded(
                       child: OutlinedButton.icon(
                     onPressed: () => _recordPartialPayment(context, sale),
@@ -320,38 +355,41 @@ class _SaleDetailSheet extends StatelessWidget {
                     icon: const Icon(Icons.check_circle_outline, size: 18),
                     label: const Text('Mark Paid'),
                   )),
-                ] else
-                  Expanded(
-                      child: OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.red,
-                        side: const BorderSide(color: Colors.red)),
-                    onPressed: () async {
-                      await context.read<SaleProvider>().delete(sale);
-                      if (context.mounted) Navigator.pop(context);
-                    },
-                    icon: const Icon(Icons.delete_outline, size: 18),
-                    label: const Text('Delete'),
-                  )),
-              ]),
-              if (!sale.isGift && !isPaid) ...[
-                const SizedBox(height: 8),
-                SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.red,
-                          side: const BorderSide(color: Colors.red)),
-                      onPressed: () async {
-                        await context.read<SaleProvider>().delete(sale);
-                        if (context.mounted) Navigator.pop(context);
-                      },
-                      icon: const Icon(Icons.delete_outline, size: 18),
-                      label: const Text('Delete Sale'),
-                    )),
-              ],
+                ]),
+
               const SizedBox(height: 8),
             ]),
+      ),
+    );
+  }
+
+  void _confirmDelete(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Delete Sale?'),
+        content: Text(
+          'Delete the sale of ${sale.crates} crates for ${sale.customerName} '
+          'on ${formatDate(sale.date)}? This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () async {
+              await context.read<SaleProvider>().delete(sale);
+              if (context.mounted) {
+                Navigator.pop(context); // close dialog
+                Navigator.pop(context); // close sheet
+                ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Sale deleted')));
+              }
+            },
+            child: const Text('Delete'),
+          ),
+        ],
       ),
     );
   }
@@ -390,8 +428,8 @@ class _SaleDetailSheet extends StatelessWidget {
               sale.synced = false;
               await context.read<SaleProvider>().update(sale);
               if (context.mounted) {
-                Navigator.pop(context);
-                Navigator.pop(context); // close bottom sheet
+                Navigator.pop(context); // close dialog
+                Navigator.pop(context); // close sheet
                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                     content: Text('${formatMoney(payment)} payment recorded')));
               }
@@ -514,6 +552,12 @@ class _SaleFormScreenState extends State<SaleFormScreen> {
       _show('Enter price per crate');
       return;
     }
+    final paid = _isGift ? 0.0 : (double.tryParse(_paidCtrl.text) ?? 0);
+    if (!_isGift && paid > _total) {
+      _show(
+          'Amount paid (${formatMoney(paid)}) cannot exceed total (${formatMoney(_total)})');
+      return;
+    }
     final sale = Sale(
       id: widget.existing?.id ?? const Uuid().v4(),
       date: _date,
@@ -522,7 +566,7 @@ class _SaleFormScreenState extends State<SaleFormScreen> {
       crates: int.tryParse(_cratesCtrl.text) ?? 0,
       loosePieces: 0,
       pricePerCrate: _isGift ? 0 : (double.tryParse(_priceCtrl.text) ?? 0),
-      amountPaid: _isGift ? 0 : (double.tryParse(_paidCtrl.text) ?? 0),
+      amountPaid: paid,
       flockId: _flockId,
       notes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
       isGift: _isGift,

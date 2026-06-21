@@ -5,31 +5,55 @@ import 'package:uuid/uuid.dart';
 import '../../providers/flock_provider.dart';
 import '../../models/flock.dart';
 import '../../utils/formatters.dart';
+import '../../core/app_theme.dart';
 
 class FlocksScreen extends StatelessWidget {
   const FlocksScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final flocks = context.watch<FlockProvider>().all;
+    final all = context.watch<FlockProvider>().all;
+    final active = all.where((f) => f.isActive).toList();
+    final retired = all.where((f) => !f.isActive).toList();
+
     return Scaffold(
       appBar: AppBar(title: const Text('Flocks')),
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'flocks_fab',
         onPressed: () => _openForm(context, null),
         icon: const Icon(Icons.add),
         label: const Text('Add Flock'),
       ),
-      body: flocks.isEmpty
+      body: all.isEmpty
           ? _Empty(onAdd: () => _openForm(context, null))
-          : ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: flocks.length,
-              itemBuilder: (_, i) => _FlockCard(
-                flock: flocks[i],
-                onEdit: () => _openForm(context, flocks[i]),
-                onDelete: () => _confirmDelete(context, flocks[i]),
-                onMortality: () => _recordMortality(context, flocks[i]),
-              ),
+          : ListView(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
+              children: [
+                if (active.isNotEmpty) ...[
+                  _SectionHeader(label: 'Active Flocks', count: active.length),
+                  ...active.map((f) => _FlockCard(
+                        flock: f,
+                        onEdit: () => _openForm(context, f),
+                        onDelete: () => _confirmDelete(context, f),
+                        onMortality: () => _recordMortality(context, f),
+                        onRetire: () => _confirmRetire(context, f),
+                        onReactivate: null,
+                      )),
+                ],
+                if (retired.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  _SectionHeader(
+                      label: 'Retired Flocks', count: retired.length),
+                  ...retired.map((f) => _FlockCard(
+                        flock: f,
+                        onEdit: () => _openForm(context, f),
+                        onDelete: () => _confirmDelete(context, f),
+                        onMortality: null,
+                        onRetire: null,
+                        onReactivate: () => _reactivate(context, f),
+                      )),
+                ],
+              ],
             ),
     );
   }
@@ -39,66 +63,192 @@ class FlocksScreen extends StatelessWidget {
 
   void _confirmDelete(BuildContext context, Flock flock) {
     showDialog(
-        context: context,
-        builder: (_) => AlertDialog(
-              title: const Text('Delete Flock?'),
-              content: Text('Delete "${flock.name}"? Daily logs will remain.'),
-              actions: [
-                TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('Cancel')),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                  onPressed: () {
-                    context.read<FlockProvider>().delete(flock.id);
-                    Navigator.pop(context);
-                  },
-                  child: const Text('Delete'),
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Delete Flock?'),
+        content: Text(
+            'Delete "${flock.name}"? Daily logs linked to this flock will remain.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () {
+              context.read<FlockProvider>().delete(flock.id);
+              Navigator.pop(context);
+            },
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmRetire(BuildContext context, Flock flock) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Retire This Flock?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Retiring "${flock.name}" means this batch cycle is complete. '
+              'The flock will no longer appear in the daily log form.',
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange.shade100),
+              ),
+              child: Row(children: [
+                Icon(Icons.info_outline,
+                    size: 16, color: Colors.orange.shade700),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'All historical logs and reports for this flock are preserved.',
+                    style:
+                        TextStyle(fontSize: 12, color: Colors.orange.shade800),
+                  ),
                 ),
-              ],
-            ));
+              ]),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange.shade700),
+            onPressed: () async {
+              flock.isActive = false;
+              flock.retiredDate = DateTime.now();
+              flock.synced = false;
+              await context.read<FlockProvider>().update(flock);
+              if (context.mounted) {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('"${flock.name}" has been retired')),
+                );
+              }
+            },
+            child: const Text('Retire Flock'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _reactivate(BuildContext context, Flock flock) async {
+    flock.isActive = true;
+    flock.retiredDate = null;
+    flock.synced = false;
+    await context.read<FlockProvider>().update(flock);
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('"${flock.name}" reactivated')),
+      );
+    }
   }
 
   void _recordMortality(BuildContext context, Flock flock) {
     final ctrl = TextEditingController();
     showDialog(
-        context: context,
-        builder: (_) => AlertDialog(
-              title: Text('Mortality — ${flock.name}'),
-              content: TextField(
-                controller: ctrl,
-                keyboardType: TextInputType.number,
-                autofocus: true,
-                decoration: const InputDecoration(
-                    labelText: 'Number of birds that died'),
-              ),
-              actions: [
-                TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('Cancel')),
-                ElevatedButton(
-                  onPressed: () {
-                    final n = int.tryParse(ctrl.text) ?? 0;
-                    if (n > 0) {
-                      context.read<FlockProvider>().addMortality(flock.id, n);
-                    }
-                    Navigator.pop(context);
-                  },
-                  child: const Text('Save'),
-                ),
-              ],
-            ));
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text('Mortality — ${flock.name}'),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text(
+            'Active birds: ${flock.activeBirds}',
+            style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: ctrl,
+            keyboardType: TextInputType.number,
+            autofocus: true,
+            decoration: const InputDecoration(
+                labelText: 'Number of birds that died',
+                prefixIcon: Icon(Icons.remove_circle_outline)),
+          ),
+        ]),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel')),
+          ElevatedButton(
+            style:
+                ElevatedButton.styleFrom(backgroundColor: Colors.red.shade700),
+            onPressed: () {
+              final n = int.tryParse(ctrl.text) ?? 0;
+              if (n > 0) {
+                context.read<FlockProvider>().addMortality(flock.id, n);
+              }
+              Navigator.pop(context);
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
   }
 }
 
+// ---- Section Header ----
+class _SectionHeader extends StatelessWidget {
+  final String label;
+  final int count;
+  const _SectionHeader({required this.label, required this.count});
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(bottom: 8, top: 4),
+        child: Row(children: [
+          Text(label,
+              style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey.shade600)),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade200,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text('$count',
+                style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.grey.shade600,
+                    fontWeight: FontWeight.w600)),
+          ),
+        ]),
+      );
+}
+
+// ---- Flock Card ----
 class _FlockCard extends StatelessWidget {
   final Flock flock;
-  final VoidCallback onEdit, onDelete, onMortality;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+  final VoidCallback? onMortality;
+  final VoidCallback? onRetire;
+  final VoidCallback? onReactivate;
+
   const _FlockCard({
     required this.flock,
     required this.onEdit,
     required this.onDelete,
     required this.onMortality,
+    required this.onRetire,
+    required this.onReactivate,
   });
 
   @override
@@ -108,6 +258,7 @@ class _FlockCard extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           child:
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            // Header row
             Row(children: [
               Expanded(
                 child: Text(flock.name,
@@ -124,19 +275,22 @@ class _FlockCard extends StatelessWidget {
                     color: Colors.grey.shade200,
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: Text('Inactive',
-                      style:
-                          TextStyle(color: Colors.grey.shade600, fontSize: 11)),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(Icons.archive_outlined,
+                        size: 12, color: Colors.grey.shade600),
+                    const SizedBox(width: 4),
+                    Text('Retired',
+                        style: TextStyle(
+                            color: Colors.grey.shade600, fontSize: 11)),
+                  ]),
                 ),
               PopupMenuButton<String>(
                 onSelected: (v) {
                   if (v == 'edit') onEdit();
                   if (v == 'delete') onDelete();
-                  if (v == 'mortality') onMortality();
-                  if (v == 'toggle') {
-                    flock.isActive = !flock.isActive;
-                    context.read<FlockProvider>().update(flock);
-                  }
+                  if (v == 'mortality') onMortality?.call();
+                  if (v == 'retire') onRetire?.call();
+                  if (v == 'reactivate') onReactivate?.call();
                 },
                 itemBuilder: (_) => [
                   const PopupMenuItem(
@@ -145,22 +299,33 @@ class _FlockCard extends StatelessWidget {
                           dense: true,
                           leading: Icon(Icons.edit_outlined),
                           title: Text('Edit'))),
-                  const PopupMenuItem(
-                      value: 'mortality',
-                      child: ListTile(
-                          dense: true,
-                          leading: Icon(Icons.remove_circle_outline),
-                          title: Text('Record Mortality'))),
-                  PopupMenuItem(
-                      value: 'toggle',
-                      child: ListTile(
-                          dense: true,
-                          leading: Icon(flock.isActive
-                              ? Icons.pause_circle_outline
-                              : Icons.play_circle_outline),
-                          title: Text(flock.isActive
-                              ? 'Mark Inactive'
-                              : 'Mark Active'))),
+                  if (onMortality != null)
+                    const PopupMenuItem(
+                        value: 'mortality',
+                        child: ListTile(
+                            dense: true,
+                            leading: Icon(Icons.remove_circle_outline,
+                                color: Colors.red),
+                            title: Text('Record Mortality'))),
+                  if (onRetire != null)
+                    PopupMenuItem(
+                        value: 'retire',
+                        child: ListTile(
+                            dense: true,
+                            leading: Icon(Icons.archive_outlined,
+                                color: Colors.orange.shade700),
+                            title: Text('Retire Flock',
+                                style:
+                                    TextStyle(color: Colors.orange.shade700)))),
+                  if (onReactivate != null)
+                    const PopupMenuItem(
+                        value: 'reactivate',
+                        child: ListTile(
+                            dense: true,
+                            leading: Icon(Icons.play_circle_outline,
+                                color: AppTheme.primary),
+                            title: Text('Reactivate',
+                                style: TextStyle(color: AppTheme.primary)))),
                   const PopupMenuItem(
                       value: 'delete',
                       child: ListTile(
@@ -172,7 +337,10 @@ class _FlockCard extends StatelessWidget {
                 ],
               ),
             ]),
+
             const SizedBox(height: 12),
+
+            // Stats row
             Row(children: [
               _Stat('Total Birds', '${flock.numberOfBirds}'),
               _Stat('Active Birds', '${flock.activeBirds}'),
@@ -182,14 +350,52 @@ class _FlockCard extends StatelessWidget {
             Row(children: [
               _Stat('Cost/Bird', formatMoney(flock.costPerBird)),
               _Stat('Started', formatDateShort(flock.startDate)),
-              const Expanded(child: SizedBox()),
+              if (flock.retiredDate != null)
+                _Stat('Retired', formatDateShort(flock.retiredDate!))
+              else
+                const Expanded(child: SizedBox()),
             ]),
+
             if (flock.notes != null && flock.notes!.isNotEmpty) ...[
               const SizedBox(height: 8),
               Text(flock.notes!,
                   style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
                   overflow: TextOverflow.ellipsis,
                   maxLines: 2),
+            ],
+
+            // Retire CTA only for active flocks
+            if (flock.isActive) ...[
+              const SizedBox(height: 14),
+              const Divider(height: 0),
+              const SizedBox(height: 10),
+              Row(children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.orange.shade700,
+                      side: BorderSide(color: Colors.orange.shade200),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                    ),
+                    onPressed: onRetire,
+                    icon: const Icon(Icons.archive_outlined, size: 16),
+                    label: const Text('Retire This Batch'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red.shade600,
+                      side: BorderSide(color: Colors.red.shade200),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                    ),
+                    onPressed: onMortality,
+                    icon: const Icon(Icons.remove_circle_outline, size: 16),
+                    label: const Text('Record Death'),
+                  ),
+                ),
+              ]),
             ],
           ]),
         ),
@@ -271,6 +477,7 @@ class _FlockFormScreenState extends State<FlockFormScreen> {
       startDate: widget.existing?.startDate ?? DateTime.now(),
       isActive: widget.existing?.isActive ?? true,
       mortalityCount: widget.existing?.mortalityCount ?? 0,
+      retiredDate: widget.existing?.retiredDate,
       notes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
     );
     final p = context.read<FlockProvider>();

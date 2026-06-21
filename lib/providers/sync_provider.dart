@@ -17,22 +17,21 @@ import 'customer_provider.dart';
 enum SyncStatus { idle, syncing, synced, error, offline }
 
 class SyncProvider extends ChangeNotifier {
-  final _db   = FirebaseFirestore.instance;
+  final _db = FirebaseFirestore.instance;
   final _auth = FirebaseAuth.instance;
 
-  SyncStatus _status  = SyncStatus.idle;
-  bool _isOnline      = true;
+  SyncStatus _status = SyncStatus.idle;
+  bool _isOnline = true;
   String? _lastError;
 
-  SyncStatus get status    => _status;
-  bool       get isOnline  => _isOnline;
-  String?    get lastError => _lastError;
+  SyncStatus get status => _status;
+  bool get isOnline => _isOnline;
+  String? get lastError => _lastError;
 
   String? get _uid => _auth.currentUser?.uid;
 
-  CollectionReference? _col(String name) => _uid == null
-      ? null
-      : _db.collection('users').doc(_uid).collection(name);
+  CollectionReference? _col(String name) =>
+      _uid == null ? null : _db.collection('users').doc(_uid).collection(name);
 
   void startMonitoring() {
     Connectivity().onConnectivityChanged.listen((results) {
@@ -67,87 +66,107 @@ class SyncProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // ---- PUSH ----
-      for (final f in flocks.all) {
+      // ════════════════════════════════════════════
+      // PUSH — only unsynced records
+      // ════════════════════════════════════════════
+
+      // Flocks (previously pushed ALL — now only unsynced)
+      for (final f in flocks.unsynced) {
         await _col('flocks')?.doc(f.id).set(f.toJson());
+        f.synced = true;
+        await f.save();
       }
+
       for (final l in logs.unsynced) {
         await _col('daily_logs')?.doc(l.id).set(l.toJson());
         l.synced = true;
         await l.save();
       }
+
       for (final s in sales.unsynced) {
         await _col('sales')?.doc(s.id).set(s.toJson());
         s.synced = true;
         await s.save();
       }
+
       for (final e in expenses.unsynced) {
         await _col('expenses')?.doc(e.id).set(e.toJson());
         e.synced = true;
         await e.save();
       }
+
       for (final c in customers.unsynced) {
         await _col('customers')?.doc(c.id).set(c.toJson());
         c.synced = true;
         await c.save();
       }
 
-      // ---- PULL ----
-      // For each collection: if the record was deleted locally,
-      // delete it from Firestore too so it never comes back.
+      // ════════════════════════════════════════════
+      // PULL — every collection now checks isDeleted
+      // before adding a remote record locally.
+      // If deleted locally → delete from Firestore too.
+      // ════════════════════════════════════════════
 
-      // Flocks
+      // ── Flocks ──────────────────────────────────
       final fs = await _col('flocks')?.get();
       for (final d in fs?.docs ?? []) {
-        if (flocks.getById(d.id) == null) {
-          await flocks.add(
-              Flock.fromJson(d.data() as Map<String, dynamic>));
+        if (flocks.isDeleted(d.id)) {
+          // Was deleted locally — propagate deletion to Firestore
+          await _col('flocks')?.doc(d.id).delete();
+        } else if (flocks.getById(d.id) == null) {
+          // New on Firestore, not seen locally → add
+          await flocks.add(Flock.fromJson(d.data() as Map<String, dynamic>));
         }
+        // If already in local box → no action needed (local is source of truth)
       }
 
-      // Daily logs
+      // ── Daily Logs ───────────────────────────────
       final ls = await _col('daily_logs')?.get();
       for (final d in ls?.docs ?? []) {
         if (logs.isDeleted(d.id)) {
           await _col('daily_logs')?.doc(d.id).delete();
         } else {
           final j = d.data() as Map<String, dynamic>;
-          if (logs.getForDate(
-                  DateTime.parse(j['date']), j['flockId']) == null) {
+          if (logs.getForDate(DateTime.parse(j['date']), j['flockId']) ==
+              null) {
             await logs.add(DailyLog.fromJson(j));
           }
         }
       }
 
-      // Sales
+      // ── Sales ────────────────────────────────────
       final ss = await _col('sales')?.get();
       for (final d in ss?.docs ?? []) {
         if (sales.isDeleted(d.id)) {
           await _col('sales')?.doc(d.id).delete();
         } else if (!sales.all.any((s) => s.id == d.id)) {
-          await sales.add(
-              Sale.fromJson(d.data() as Map<String, dynamic>));
+          await sales.add(Sale.fromJson(d.data() as Map<String, dynamic>));
         }
       }
 
-      // Expenses
+      // ── Expenses ─────────────────────────────────
       final es = await _col('expenses')?.get();
       for (final d in es?.docs ?? []) {
         if (expenses.isDeleted(d.id)) {
           await _col('expenses')?.doc(d.id).delete();
         } else if (!expenses.all.any((e) => e.id == d.id)) {
-          await expenses.add(
-              Expense.fromJson(d.data() as Map<String, dynamic>));
+          await expenses
+              .add(Expense.fromJson(d.data() as Map<String, dynamic>));
         }
       }
 
-      // Customers
+      // ── Customers ────────────────────────────────
       final cs = await _col('customers')?.get();
       for (final d in cs?.docs ?? []) {
-        if (customers.getById(d.id) == null) {
-          await customers.add(
-              Customer.fromJson(d.data() as Map<String, dynamic>));
+        if (customers.isDeleted(d.id)) {
+          // Was deleted locally — propagate deletion to Firestore
+          await _col('customers')?.doc(d.id).delete();
+        } else if (customers.getById(d.id) == null) {
+          // New on Firestore, not seen locally → add
+          await customers
+              .add(Customer.fromJson(d.data() as Map<String, dynamic>));
         }
+        // If already in local box → no action needed
       }
 
       _status = SyncStatus.synced;

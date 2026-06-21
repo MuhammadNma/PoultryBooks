@@ -229,12 +229,20 @@ class CustomerDetailScreen extends StatelessWidget {
       appBar: AppBar(
         title: Text(customer.name, overflow: TextOverflow.ellipsis),
         actions: [
+          // Edit button
           IconButton(
             icon: const Icon(Icons.edit_outlined),
+            tooltip: 'Edit Customer',
             onPressed: () => Navigator.push(
                 context,
                 MaterialPageRoute(
                     builder: (_) => CustomerFormScreen(existing: customer))),
+          ),
+          // Delete button
+          IconButton(
+            icon: const Icon(Icons.delete_outline),
+            tooltip: 'Delete Customer',
+            onPressed: () => _confirmDelete(context, customer, owing),
           ),
         ],
       ),
@@ -339,6 +347,65 @@ class CustomerDetailScreen extends StatelessWidget {
 
         const SizedBox(height: 80),
       ]),
+    );
+  }
+
+  /// Confirm and delete the customer (and warn if they have sales history)
+  void _confirmDelete(BuildContext context, Customer customer, double owing) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Delete Customer?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Are you sure you want to delete ${customer.name}?'),
+            if (owing > 0) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.red.shade100),
+                ),
+                child: Row(children: [
+                  Icon(Icons.warning_amber_rounded,
+                      color: Colors.red.shade700, size: 16),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'This customer owes ${formatMoney(owing)}. '
+                      'Their sales history will remain but they will be removed from the customer list.',
+                      style:
+                          TextStyle(fontSize: 12, color: Colors.red.shade700),
+                    ),
+                  ),
+                ]),
+              ),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () async {
+              await context.read<CustomerProvider>().delete(customer.id);
+              if (context.mounted) {
+                Navigator.pop(context); // close dialog
+                Navigator.pop(context); // go back to list
+                ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('${customer.name} deleted')));
+              }
+            },
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -506,17 +573,21 @@ class _Empty extends StatelessWidget {
   const _Empty({required this.onAdd});
   @override
   Widget build(BuildContext context) => Center(
-          child: Padding(
-        padding: const EdgeInsets.all(40),
-        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Icon(Icons.group_outlined, size: 72, color: Colors.grey.shade300),
-          const SizedBox(height: 16),
-          const Text('No customers yet',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
-          Text('Add customers to track egg sales and payments.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey.shade500)),
-        ]),
-      ));
+        child: Padding(
+          padding: const EdgeInsets.all(40),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.group_outlined, size: 72, color: Colors.grey.shade300),
+              const SizedBox(height: 16),
+              const Text('No customers yet',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Text('Add customers to track egg sales and payments.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey.shade500)),
+            ],
+          ),
+        ),
+      );
 }
