@@ -1,11 +1,13 @@
 // lib/screens/dashboard/dashboard_screen.dart
 import 'package:flutter/material.dart';
+import 'package:poultry_books/models/egg_adjustment.dart';
 import 'package:provider/provider.dart';
 import '../../providers/daily_log_provider.dart';
 import '../../providers/sale_provider.dart';
 import '../../providers/expense_provider.dart';
 import '../../providers/flock_provider.dart';
 import '../../providers/settings_provider.dart';
+import '../../providers/egg_adjustment_provider.dart';
 import '../../core/app_theme.dart';
 import '../../utils/formatters.dart';
 import '../expenses/expenses_screen.dart';
@@ -34,8 +36,10 @@ class DashboardScreen extends StatelessWidget {
     final todayCrates = todayEggs ~/ 30;
     final todayLoose = todayEggs % 30;
 
+    final adjustments = context.watch<EggAdjustmentProvider>();
     final totalSold = sales.totalEggsSold();
-    final eggsOnHand = logs.totalEggsOnHand(totalSold);
+    final eggsOnHand = logs.totalEggsOnHand(totalSold,
+        netAdjustment: adjustments.netAdjustment);
     final monthIncome = sales.totalIncomeForMonth(now.year, now.month);
     final monthExpenses = expenses.totalForMonth(now.year, now.month);
     final monthProfit = monthIncome - monthExpenses;
@@ -106,11 +110,9 @@ class DashboardScreen extends StatelessWidget {
                     icon: Icons.trending_down,
                     color: Colors.orange.shade600,
                   ),
-                  _KpiCard(
-                    label: 'Eggs on Hand',
-                    value: formatEggs(eggsOnHand),
-                    icon: Icons.inventory_2_outlined,
-                    color: Colors.purple.shade500,
+                  _EggsOnHandCard(
+                    eggsOnHand: eggsOnHand,
+                    onTap: () => _showEggAdjustmentSheet(context),
                   ),
                   if (totalOwing > 0)
                     _KpiCard(
@@ -212,13 +214,13 @@ class DashboardScreen extends StatelessWidget {
                             builder: (_) => const EggLogHistoryScreen())),
                   ),
                   _QuickAction(
-                    icon: Icons.receipt_long_outlined,
-                    label: 'Expenses',
-                    color: Colors.red.shade900,
+                    icon: Icons.person_outlined,
+                    label: 'Customers',
+                    color: Colors.blue.shade500,
                     onTap: () => Navigator.push(
                         context,
                         MaterialPageRoute(
-                            builder: (_) => const ExpensesScreen())),
+                            builder: (_) => const CustomersScreen())),
                   ),
                   _QuickAction(
                     icon: Icons.sync_outlined,
@@ -238,6 +240,533 @@ class DashboardScreen extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════
+// EGG ADJUSTMENT SHEET — shown when user taps Eggs on Hand card
+// ════════════════════════════════════════════════════════════════════
+void _showEggAdjustmentSheet(BuildContext context) {
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+    builder: (_) => const _EggAdjustmentSheet(),
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// EGGS ON HAND CARD — tappable KPI card with long-press hint
+// ════════════════════════════════════════════════════════════════════
+class _EggsOnHandCard extends StatelessWidget {
+  final int eggsOnHand;
+  final VoidCallback onTap;
+  const _EggsOnHandCard({required this.eggsOnHand, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = Colors.purple.shade500;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 140,
+        margin: const EdgeInsets.only(right: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: color.withOpacity(0.3)),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Icon(Icons.inventory_2_outlined, color: color, size: 16),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(formatEggs(eggsOnHand),
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                          color: color),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1),
+                  Row(children: [
+                    Expanded(
+                      child: Text('Eggs on Hand',
+                          style: TextStyle(
+                              fontSize: 10, color: Colors.grey.shade500),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1),
+                    ),
+                    Icon(Icons.tune, size: 10, color: color.withOpacity(0.5)),
+                  ]),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════
+// EGG ADJUSTMENT BOTTOM SHEET
+// ════════════════════════════════════════════════════════════════════
+class _EggAdjustmentSheet extends StatefulWidget {
+  const _EggAdjustmentSheet();
+  @override
+  State<_EggAdjustmentSheet> createState() => _EggAdjustmentSheetState();
+}
+
+class _EggAdjustmentSheetState extends State<_EggAdjustmentSheet> {
+  // 0 = pick action, 1 = record loss, 2 = correct stock
+  int _step = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding:
+          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Drag handle
+              Center(
+                child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(2))),
+              ),
+              const SizedBox(height: 16),
+
+              if (_step == 0) ...[
+                const Text('Adjust Eggs on Hand',
+                    style:
+                        TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 6),
+                Text(
+                  'Correct your egg stock when the app count '
+                  'doesn\'t match reality.',
+                  style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
+                ),
+                const SizedBox(height: 20),
+                _OptionTile(
+                  icon: Icons.broken_image_outlined,
+                  iconColor: Colors.orange.shade600,
+                  title: 'Record Egg Loss',
+                  subtitle: 'Broken, rotten, stolen, eaten at home, given away',
+                  onTap: () => setState(() => _step = 1),
+                ),
+                const SizedBox(height: 10),
+                _OptionTile(
+                  icon: Icons.inventory_outlined,
+                  iconColor: Colors.blue.shade600,
+                  title: 'Correct Stock Count',
+                  subtitle:
+                      'Physical count differs from app — set the real number',
+                  onTap: () => setState(() => _step = 2),
+                ),
+                const SizedBox(height: 10),
+                _OptionTile(
+                  icon: Icons.history,
+                  iconColor: Colors.grey.shade600,
+                  title: 'View Adjustment History',
+                  subtitle: 'See all past losses and corrections',
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) =>
+                                const EggAdjustmentHistoryScreen()));
+                  },
+                ),
+              ] else if (_step == 1) ...[
+                _LossForm(onBack: () => setState(() => _step = 0)),
+              ] else ...[
+                _StockCorrectionForm(onBack: () => setState(() => _step = 0)),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Option Tile ──────────────────────────────────────────────────────
+class _OptionTile extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final String title, subtitle;
+  final VoidCallback onTap;
+  const _OptionTile({
+    required this.icon,
+    required this.iconColor,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+  @override
+  Widget build(BuildContext context) => InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: iconColor.withOpacity(0.06),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: iconColor.withOpacity(0.15)),
+          ),
+          child: Row(children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: iconColor.withOpacity(0.12),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: iconColor, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+                child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w600, fontSize: 14)),
+                const SizedBox(height: 2),
+                Text(subtitle,
+                    style:
+                        TextStyle(fontSize: 12, color: Colors.grey.shade500)),
+              ],
+            )),
+            Icon(Icons.chevron_right, color: Colors.grey.shade400),
+          ]),
+        ),
+      );
+}
+
+// ── Loss Form ────────────────────────────────────────────────────────
+class _LossForm extends StatefulWidget {
+  final VoidCallback onBack;
+  const _LossForm({required this.onBack});
+  @override
+  State<_LossForm> createState() => _LossFormState();
+}
+
+class _LossFormState extends State<_LossForm> {
+  final _eggsCtrl = TextEditingController();
+  String _reason = 'Broken/Cracked';
+  final _customCtrl = TextEditingController();
+
+  static const _reasons = [
+    'Broken/Cracked',
+    'Rotten/Spoiled',
+    'Eaten at Home',
+    'Given Away',
+    'Stolen',
+    'Other',
+  ];
+
+  @override
+  Widget build(BuildContext context) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(children: [
+            IconButton(
+                onPressed: widget.onBack,
+                icon: const Icon(Icons.arrow_back),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints()),
+            const SizedBox(width: 8),
+            const Text('Record Egg Loss',
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+          ]),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _eggsCtrl,
+            keyboardType: TextInputType.number,
+            autofocus: true,
+            decoration: const InputDecoration(
+              labelText: 'Number of Eggs Lost',
+              prefixIcon: Icon(Icons.egg_outlined),
+              hintText: 'e.g. 15',
+            ),
+          ),
+          const SizedBox(height: 14),
+          DropdownButtonFormField<String>(
+            value: _reason,
+            decoration: const InputDecoration(
+                labelText: 'Reason', prefixIcon: Icon(Icons.help_outline)),
+            items: _reasons
+                .map((r) => DropdownMenuItem(value: r, child: Text(r)))
+                .toList(),
+            onChanged: (v) => setState(() => _reason = v!),
+          ),
+          if (_reason == 'Other') ...[
+            const SizedBox(height: 14),
+            TextField(
+              controller: _customCtrl,
+              decoration: const InputDecoration(
+                  labelText: 'Describe the reason',
+                  prefixIcon: Icon(Icons.note_outlined)),
+            ),
+          ],
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orange.shade600),
+              onPressed: () async {
+                final eggs = int.tryParse(_eggsCtrl.text) ?? 0;
+                if (eggs <= 0) {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                      content: Text('Enter number of eggs lost')));
+                  return;
+                }
+                final finalReason = _reason == 'Other'
+                    ? (_customCtrl.text.trim().isEmpty
+                        ? 'Other'
+                        : _customCtrl.text.trim())
+                    : _reason;
+                await context
+                    .read<EggAdjustmentProvider>()
+                    .recordLoss(eggs: eggs, reason: finalReason);
+                if (context.mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                      content:
+                          Text('$eggs eggs recorded as lost ($finalReason)')));
+                }
+              },
+              child: const Text('Save Loss'),
+            ),
+          ),
+        ],
+      );
+}
+
+// ── Stock Correction Form ────────────────────────────────────────────
+class _StockCorrectionForm extends StatefulWidget {
+  final VoidCallback onBack;
+  const _StockCorrectionForm({required this.onBack});
+  @override
+  State<_StockCorrectionForm> createState() => _StockCorrectionFormState();
+}
+
+class _StockCorrectionFormState extends State<_StockCorrectionForm> {
+  final _actualCtrl = TextEditingController();
+
+  @override
+  Widget build(BuildContext context) {
+    final logs = context.watch<DailyLogProvider>();
+    final sales = context.watch<SaleProvider>();
+    final adjustments = context.watch<EggAdjustmentProvider>();
+    final currentOnHand = logs.totalEggsOnHand(sales.totalEggsSold(),
+        netAdjustment: adjustments.netAdjustment);
+    final actualTyped = int.tryParse(_actualCtrl.text);
+    final diff = actualTyped != null ? actualTyped - currentOnHand : null;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(children: [
+          IconButton(
+              onPressed: widget.onBack,
+              icon: const Icon(Icons.arrow_back),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints()),
+          const SizedBox(width: 8),
+          const Text('Correct Stock Count',
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+        ]),
+        const SizedBox(height: 12),
+        // Current app count
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade50,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Colors.grey.shade200),
+          ),
+          child: Row(children: [
+            Icon(Icons.phone_android, size: 16, color: Colors.grey.shade500),
+            const SizedBox(width: 8),
+            Text('App currently shows: ',
+                style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+            Text(formatEggs(currentOnHand),
+                style:
+                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+          ]),
+        ),
+        const SizedBox(height: 14),
+        TextField(
+          controller: _actualCtrl,
+          keyboardType: TextInputType.number,
+          autofocus: true,
+          decoration: const InputDecoration(
+            labelText: 'Actual eggs you physically counted',
+            prefixIcon: Icon(Icons.egg_outlined),
+            hintText: 'e.g. 450',
+          ),
+          onChanged: (_) => setState(() {}),
+        ),
+        // Live diff preview
+        if (diff != null) ...[
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: diff >= 0 ? Colors.green.shade50 : Colors.red.shade50,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                  color:
+                      diff >= 0 ? Colors.green.shade100 : Colors.red.shade100),
+            ),
+            child: Row(children: [
+              Icon(
+                diff >= 0 ? Icons.arrow_upward : Icons.arrow_downward,
+                size: 14,
+                color: diff >= 0 ? Colors.green.shade700 : Colors.red.shade600,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                diff >= 0
+                    ? 'Stock will increase by ${diff.abs()} eggs'
+                    : 'Stock will decrease by ${diff.abs()} eggs',
+                style: TextStyle(
+                    fontSize: 12,
+                    color:
+                        diff >= 0 ? Colors.green.shade700 : Colors.red.shade600,
+                    fontWeight: FontWeight.w500),
+              ),
+            ]),
+          ),
+        ],
+        const SizedBox(height: 20),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: actualTyped == null || actualTyped < 0
+                ? null
+                : () async {
+                    await context.read<EggAdjustmentProvider>().correctStock(
+                          actualOnHand: actualTyped,
+                          currentOnHand: currentOnHand,
+                          reason: 'Physical count correction',
+                        );
+                    if (context.mounted) {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                          content: Text('Stock count corrected')));
+                    }
+                  },
+            child: const Text('Save Correction'),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════
+// ADJUSTMENT HISTORY SCREEN
+// ════════════════════════════════════════════════════════════════════
+class EggAdjustmentHistoryScreen extends StatelessWidget {
+  const EggAdjustmentHistoryScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final adjustments = context.watch<EggAdjustmentProvider>().all;
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('Egg Adjustment History')),
+      body: adjustments.isEmpty
+          ? Center(
+              child: Padding(
+              padding: const EdgeInsets.all(40),
+              child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.history, size: 64, color: Colors.grey.shade300),
+                    const SizedBox(height: 16),
+                    const Text('No adjustments yet',
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    Text('Losses and stock corrections will appear here.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.grey.shade500)),
+                  ]),
+            ))
+          : ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: adjustments.length,
+              itemBuilder: (_, i) {
+                final adj = adjustments[i];
+                final isLoss = adj.type == AdjustmentType.loss;
+                final effect = adj.signedEffect;
+                final color =
+                    isLoss ? Colors.red.shade600 : Colors.blue.shade600;
+
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  child: ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: color.withOpacity(0.1),
+                      child: Icon(
+                        isLoss
+                            ? Icons.broken_image_outlined
+                            : Icons.inventory_outlined,
+                        color: color,
+                        size: 18,
+                      ),
+                    ),
+                    title: Text(adj.reason,
+                        style: const TextStyle(fontWeight: FontWeight.w600)),
+                    subtitle: Text(formatDate(adj.date)),
+                    trailing: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          '${effect >= 0 ? '+' : ''}$effect eggs',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: effect >= 0
+                                  ? Colors.green.shade600
+                                  : Colors.red.shade600,
+                              fontSize: 13),
+                        ),
+                        Text(
+                          isLoss ? 'Loss' : 'Correction',
+                          style: TextStyle(
+                              fontSize: 11, color: Colors.grey.shade500),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
     );
   }
 }

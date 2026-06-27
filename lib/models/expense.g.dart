@@ -1,24 +1,29 @@
-// lib/models/expense.g.dart
 // GENERATED CODE - DO NOT MODIFY BY HAND
+
 part of 'expense.dart';
 
+// **************************************************************************
+// TypeAdapterGenerator
+// **************************************************************************
+
 class ExpenseAdapter extends TypeAdapter<Expense> {
-  @override final int typeId = 3;
+  @override
+  final int typeId = 3;
 
   @override
   Expense read(BinaryReader reader) {
-    final n = reader.readByte();
-    final f = <int, dynamic>{
-      for (int i = 0; i < n; i++) reader.readByte(): reader.read()
+    final numOfFields = reader.readByte();
+    final fields = <int, dynamic>{
+      for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
     return Expense(
-      id: f[0] as String,
-      date: f[1] as DateTime,
-      category: (f[2] ?? 'Other') as String,
-      amount: (f[3] ?? 0.0) as double,
-      description: f[4] as String?,
-      flockId: f[5] as String?,
-      synced: f[6] == null ? false : f[6] as bool,
+      id: fields[0] as String,
+      date: fields[1] as DateTime,
+      category: fields[2] as String,
+      amount: fields[3] as double,
+      description: fields[4] as String?,
+      flockId: fields[5] as String?,
+      synced: fields[6] as bool,
     );
   }
 
@@ -26,16 +31,29 @@ class ExpenseAdapter extends TypeAdapter<Expense> {
   void write(BinaryWriter writer, Expense obj) {
     writer
       ..writeByte(7)
-      ..writeByte(0)..write(obj.id)
-      ..writeByte(1)..write(obj.date)
-      ..writeByte(2)..write(obj.category)
-      ..writeByte(3)..write(obj.amount)
-      ..writeByte(4)..write(obj.description)
-      ..writeByte(5)..write(obj.flockId)
-      ..writeByte(6)..write(obj.synced);
+      ..writeByte(0)
+      ..write(obj.id)
+      ..writeByte(1)
+      ..write(obj.date)
+      ..writeByte(2)
+      ..write(obj.category)
+      ..writeByte(3)
+      ..write(obj.amount)
+      ..writeByte(4)
+      ..write(obj.description)
+      ..writeByte(5)
+      ..write(obj.flockId)
+      ..writeByte(6)
+      ..write(obj.synced);
   }
 
-  @override bool operator ==(Object o) =>
-      o is ExpenseAdapter && o.typeId == typeId;
-  @override int get hashCode => typeId.hashCode;
+  @override
+  int get hashCode => typeId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ExpenseAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
 }

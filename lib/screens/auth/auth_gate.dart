@@ -8,6 +8,7 @@ import '../../providers/sale_provider.dart';
 import '../../providers/expense_provider.dart';
 import '../../providers/customer_provider.dart';
 import '../../providers/settings_provider.dart';
+import '../../providers/egg_adjustment_provider.dart'; // ← new
 import '../onboarding/onboarding_screen.dart';
 import '../main_shell.dart';
 import 'login_screen.dart';
@@ -57,6 +58,7 @@ class _InitAppState extends State<_InitApp> {
         context.read<ExpenseProvider>().init(uid),
         context.read<CustomerProvider>().init(uid),
         context.read<SettingsProvider>().init(uid),
+        context.read<EggAdjustmentProvider>().init(uid), // ← new
       ]);
       if (mounted) setState(() => _done = true);
     } catch (e) {
@@ -72,19 +74,24 @@ class _InitAppState extends State<_InitApp> {
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(32),
-            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+            child:
+                Column(mainAxisAlignment: MainAxisAlignment.center, children: [
               const Icon(Icons.error_outline, size: 60, color: Colors.red),
               const SizedBox(height: 16),
               const Text('Something went wrong loading your data.',
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
-              Text(_error!, textAlign: TextAlign.center,
+              Text(_error!,
+                  textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
               const SizedBox(height: 24),
               ElevatedButton(
                 onPressed: () {
-                  setState(() { _error = null; _done = false; });
+                  setState(() {
+                    _error = null;
+                    _done = false;
+                  });
                   _init();
                 },
                 child: const Text('Try Again'),
@@ -111,10 +118,12 @@ class _Loading extends StatelessWidget {
   const _Loading();
   @override
   Widget build(BuildContext context) => const Scaffold(
-    body: Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-      CircularProgressIndicator(),
-      SizedBox(height: 16),
-      Text('Loading PoultryBooks…'),
-    ])),
-  );
+        body: Center(
+            child:
+                Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          CircularProgressIndicator(),
+          SizedBox(height: 16),
+          Text('Loading PoultryBooks…'),
+        ])),
+      );
 }

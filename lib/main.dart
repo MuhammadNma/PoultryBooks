@@ -13,6 +13,7 @@ import 'models/daily_log.dart';
 import 'models/sale.dart';
 import 'models/expense.dart';
 import 'models/customer.dart';
+import 'models/egg_adjustment.dart';
 import 'providers/flock_provider.dart';
 import 'providers/daily_log_provider.dart';
 import 'providers/sale_provider.dart';
@@ -20,13 +21,14 @@ import 'providers/expense_provider.dart';
 import 'providers/customer_provider.dart';
 import 'providers/settings_provider.dart';
 import 'providers/sync_provider.dart';
+import 'providers/egg_adjustment_provider.dart';
 import 'screens/splash_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  // Clear all old Hive data to prevent type cast errors from old adapters
+  // Clear old Hive data on schema version change
   await _clearOldHiveData();
 
   await Hive.initFlutter();
@@ -35,6 +37,7 @@ Future<void> main() async {
   Hive.registerAdapter(SaleAdapter());
   Hive.registerAdapter(ExpenseAdapter());
   Hive.registerAdapter(CustomerAdapter());
+  Hive.registerAdapter(EggAdjustmentAdapter()); // ← new
 
   runApp(const PoultryBooksApp());
 }
@@ -45,20 +48,17 @@ Future<void> _clearOldHiveData() async {
   try {
     final dir = await getApplicationDocumentsDirectory();
     final versionFile = File('${dir.path}/pb_schema_version.txt');
-    const currentVersion = '3';
+    const currentVersion = '4'; // bumped from 3 → 4 for EggAdjustment
 
-    // If version file exists and matches, skip clearing
     if (versionFile.existsSync()) {
       final version = versionFile.readAsStringSync().trim();
       if (version == currentVersion) return;
     }
 
     // Version mismatch or first run — clear all Hive boxes
-    final hivePath = dir.path;
     final hiveFiles = dir
         .listSync()
-        .where((f) =>
-            f.path.endsWith('.hive') || f.path.endsWith('.lock'))
+        .where((f) => f.path.endsWith('.hive') || f.path.endsWith('.lock'))
         .toList();
 
     for (final file in hiveFiles) {
@@ -67,7 +67,6 @@ Future<void> _clearOldHiveData() async {
       } catch (_) {}
     }
 
-    // Write new version
     await versionFile.writeAsString(currentVersion);
   } catch (e) {
     debugPrint('Hive cleanup error: $e');
@@ -88,6 +87,7 @@ class PoultryBooksApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => CustomerProvider()),
         ChangeNotifierProvider(create: (_) => SettingsProvider()),
         ChangeNotifierProvider(create: (_) => SyncProvider()),
+        ChangeNotifierProvider(create: (_) => EggAdjustmentProvider()), // ← new
       ],
       child: MaterialApp(
         title: 'PoultryBooks',

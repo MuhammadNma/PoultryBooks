@@ -13,6 +13,7 @@ import 'daily_log_provider.dart';
 import 'sale_provider.dart';
 import 'expense_provider.dart';
 import 'customer_provider.dart';
+import 'egg_adjustment_provider.dart';
 
 enum SyncStatus { idle, syncing, synced, error, offline }
 
@@ -50,6 +51,7 @@ class SyncProvider extends ChangeNotifier {
     required SaleProvider sales,
     required ExpenseProvider expenses,
     required CustomerProvider customers,
+    required EggAdjustmentProvider eggAdjustments,
   }) async {
     if (_uid == null) return;
     final conn = await Connectivity().checkConnectivity();
@@ -99,6 +101,12 @@ class SyncProvider extends ChangeNotifier {
         await _col('customers')?.doc(c.id).set(c.toJson());
         c.synced = true;
         await c.save();
+      }
+
+      for (final a in eggAdjustments.unsynced) {
+        await _col('egg_adjustments')?.doc(a.id).set(a.toJson());
+        a.synced = true;
+        await a.save();
       }
 
       // ════════════════════════════════════════════
